@@ -16,7 +16,8 @@
         "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.k1423.client"
     },
     "web": {
       "output": "static",
@@ -40,6 +41,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d8300340-019a-492f-ad26-5ea619c2f3a1"
+      }
+    },
+    "owner": "k1423"
   }
 }
