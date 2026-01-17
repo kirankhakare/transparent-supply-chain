@@ -1,7 +1,7 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const BASE_URL =  process.env.EXPO_PUBLIC_API_URL;
 
 export default function Login() {
@@ -11,47 +11,55 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert('Error', 'All fields are required');
+ const handleLogin = async () => {
+  if (!username || !password) {
+    Alert.alert('Error', 'All fields are required');
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const res = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, password }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      Alert.alert('Login Failed', data.message || 'Invalid credentials');
       return;
     }
 
-    try {
-      setLoading(true);
+    // ✅ SAVE TOKEN + ROLE
+    await AsyncStorage.setItem('token', data.token);
+    await AsyncStorage.setItem('role', data.role);
 
-      const res = await fetch(`${BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        Alert.alert('Login Failed', data.message || 'Invalid credentials');
-        return;
-      }
-
-      // 🔀 Role-based navigation
-      if (data.role === 'admin') {
-        router.replace('/(admin)/dashboard');
-      } else if (data.role === 'contractor') {
-        router.replace('/(contractor)/projects');
-      } else if (data.role === 'supplier') {
-        router.replace('/(supplier)/materials');
-      } else {
-        router.replace('/(user)/userDashboard');
-      }
-
-    } catch (error) {
-      Alert.alert('Error', 'Server not reachable');
-    } finally {
-      setLoading(false);
+    // 🔀 ROLE BASED ROUTING
+    if (data.role === 'admin') {
+      router.replace('/(admin)/dashboard');
+    } else if (data.role === 'contractor') {
+      router.replace('/(contractor)/projects');
+    } else if (data.role === 'supplier') {
+      router.replace('/(supplier)/materials');
+    } else {
+      router.replace('/(user)/userDashboard');
     }
-  };
+
+  } catch (error) {
+    Alert.alert(
+      'Server Sleeping 😴',
+      'Render backend is waking up. Please try again in 10 seconds.'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <View style={styles.container}>
