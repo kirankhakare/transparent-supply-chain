@@ -13,212 +13,132 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+/* ================= TYPES ================= */
+
+type ExpenseStatus = 'VERIFIED' | 'PENDING' | 'REJECTED';
+type ExpenseCategory = 'MATERIALS' | 'LABOR' | 'EQUIPMENT' | 'TRANSPORT' | 'OTHER';
+
 type Expense = {
   id: string;
-  projectId: string;
-  projectName: string;
-  category: 'materials' | 'labor' | 'equipment' | 'transport' | 'other';
+  project: string;
+  category: ExpenseCategory;
   description: string;
   amount: number;
   date: string;
-  status: 'verified' | 'pending' | 'rejected';
-  receipt?: string;
+  status: ExpenseStatus;
   paidTo: string;
-  paymentMethod: 'cash' | 'bank' | 'online';
+  payment: 'CASH' | 'BANK' | 'ONLINE';
 };
 
-const EXPENSES_DATA: Expense[] = [
+/* ================= DUMMY DATA ================= */
+
+const EXPENSES: Expense[] = [
   {
     id: '1',
-    projectId: '1',
-    projectName: 'Modern Residence Construction',
-    category: 'materials',
-    description: 'Cement purchase for foundation',
+    project: 'Apartment Construction',
+    category: 'MATERIALS',
+    description: 'Cement & Steel Purchase',
     amount: 4250,
-    date: '2024-01-15',
-    status: 'verified',
-    paidTo: 'BuildMart Supplies',
-    paymentMethod: 'bank',
+    date: '15 Jan 2024',
+    status: 'VERIFIED',
+    paidTo: 'BuildMart',
+    payment: 'BANK',
   },
   {
     id: '2',
-    projectId: '1',
-    projectName: 'Modern Residence Construction',
-    category: 'labor',
-    description: 'Masonry work - Week 3',
+    project: 'Apartment Construction',
+    category: 'LABOR',
+    description: 'Masonry Work',
     amount: 3200,
-    date: '2024-01-22',
-    status: 'verified',
-    paidTo: 'Smith Construction Crew',
-    paymentMethod: 'cash',
+    date: '22 Jan 2024',
+    status: 'VERIFIED',
+    paidTo: 'Local Workers',
+    payment: 'CASH',
   },
   {
     id: '3',
-    projectId: '1',
-    projectName: 'Modern Residence Construction',
-    category: 'equipment',
-    description: 'Crane rental for steel work',
+    project: 'Office Renovation',
+    category: 'EQUIPMENT',
+    description: 'Crane Rental',
     amount: 1500,
-    date: '2024-02-01',
-    status: 'pending',
-    paidTo: 'Heavy Equipment Rentals',
-    paymentMethod: 'online',
-  },
-  {
-    id: '4',
-    projectId: '2',
-    projectName: 'Commercial Office Renovation',
-    category: 'materials',
-    description: 'Drywall and insulation materials',
-    amount: 2800,
-    date: '2024-02-10',
-    status: 'verified',
-    paidTo: 'Interior Supplies Co.',
-    paymentMethod: 'bank',
-  },
-  {
-    id: '5',
-    projectId: '2',
-    projectName: 'Commercial Office Renovation',
-    category: 'labor',
-    description: 'Electrical installation team',
-    amount: 4500,
-    date: '2024-02-12',
-    status: 'pending',
-    paidTo: 'Electric Masters',
-    paymentMethod: 'bank',
-  },
-  {
-    id: '6',
-    projectId: '3',
-    projectName: 'Shopping Mall Extension',
-    category: 'transport',
-    description: 'Material delivery - Round 1',
-    amount: 1200,
-    date: '2024-03-05',
-    status: 'rejected',
-    paidTo: 'Fast Transport Services',
-    paymentMethod: 'cash',
+    date: '01 Feb 2024',
+    status: 'PENDING',
+    paidTo: 'Heavy Rentals',
+    payment: 'ONLINE',
   },
 ];
 
+/* ================= COMPONENT ================= */
+
 export default function Expenses() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<'ALL' | ExpenseStatus>('ALL');
+  const [category, setCategory] = useState<'ALL' | ExpenseCategory>('ALL');
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'verified' | 'pending' | 'rejected'>('all');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'materials' | 'labor' | 'equipment' | 'transport' | 'other'>('all');
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setRefreshing(false);
-  };
+  const filtered = EXPENSES.filter((e) => {
+    if (status !== 'ALL' && e.status !== status) return false;
+    if (category !== 'ALL' && e.category !== category) return false;
 
-  const filteredExpenses = EXPENSES_DATA.filter(expense => {
-    if (filter !== 'all' && expense.status !== filter) return false;
-    if (categoryFilter !== 'all' && expense.category !== categoryFilter) return false;
-    if (searchQuery) {
-      return expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             expense.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             expense.paidTo.toLowerCase().includes(searchQuery.toLowerCase());
-    }
-    return true;
+    if (!search) return true;
+    return (
+      e.description.toLowerCase().includes(search.toLowerCase()) ||
+      e.project.toLowerCase().includes(search.toLowerCase()) ||
+      e.paidTo.toLowerCase().includes(search.toLowerCase())
+    );
   });
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  const totalAmount = EXPENSES.reduce((s, e) => s + e.amount, 0);
 
-  const getTotalExpenses = () => {
-    return EXPENSES_DATA.reduce((sum, expense) => sum + expense.amount, 0);
-  };
+  const colorByStatus = (s: ExpenseStatus) =>
+    s === 'VERIFIED' ? '#10b981' : s === 'PENDING' ? '#f59e0b' : '#ef4444';
 
-  const getStatusColor = (status: Expense['status']) => {
-    switch (status) {
-      case 'verified': return '#10b981';
-      case 'pending': return '#f59e0b';
-      case 'rejected': return '#ef4444';
-      default: return '#6b7280';
-    }
-  };
-
-  const getCategoryColor = (category: Expense['category']) => {
-    switch (category) {
-      case 'materials': return '#3b82f6';
-      case 'labor': return '#8b5cf6';
-      case 'equipment': return '#f59e0b';
-      case 'transport': return '#10b981';
-      case 'other': return '#6b7280';
-      default: return '#6b7280';
-    }
-  };
-
-  const getCategoryIcon = (category: Expense['category']) => {
-    switch (category) {
-      case 'materials': return 'cube';
-      case 'labor': return 'people';
-      case 'equipment': return 'construct';
-      case 'transport': return 'car';
-      case 'other': return 'receipt';
+  const iconByCategory = (c: ExpenseCategory) => {
+    switch (c) {
+      case 'MATERIALS': return 'cube';
+      case 'LABOR': return 'people';
+      case 'EQUIPMENT': return 'construct';
+      case 'TRANSPORT': return 'car';
       default: return 'receipt';
     }
   };
 
-  const getPaymentMethodIcon = (method: Expense['paymentMethod']) => {
-    switch (method) {
-      case 'cash': return 'cash';
-      case 'bank': return 'card';
-      case 'online': return 'globe';
-      default: return 'cash';
-    }
-  };
-
-  const renderExpenseItem = ({ item }: { item: Expense }) => (
-    <View style={styles.expenseCard}>
-      <View style={styles.expenseHeader}>
-        <View style={styles.categoryBadge}>
-          <Ionicons 
-            name={getCategoryIcon(item.category)} 
-            size={16} 
-            color={getCategoryColor(item.category)} 
-          />
-          <Text style={[styles.categoryText, { color: getCategoryColor(item.category) }]}>
-            {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
-          </Text>
+  const renderItem = ({ item }: { item: Expense }) => (
+    <View style={styles.card}>
+      {/* HEADER */}
+      <View style={styles.cardHeader}>
+        <View style={styles.categoryPill}>
+          <Ionicons name={iconByCategory(item.category)} size={14} color="#2563eb" />
+          <Text style={styles.categoryText}>{item.category}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+
+        <View style={[styles.statusPill, { backgroundColor: colorByStatus(item.status) + '22' }]}>
+          <Text style={[styles.statusText, { color: colorByStatus(item.status) }]}>
+            {item.status}
           </Text>
         </View>
       </View>
 
-      <Text style={styles.description}>{item.description}</Text>
-      <Text style={styles.projectName}>{item.projectName}</Text>
+      <Text style={styles.desc}>{item.description}</Text>
+      <Text style={styles.project}>{item.project}</Text>
 
-      <View style={styles.expenseDetails}>
-        <View style={styles.detailRow}>
-          <View style={styles.detailItem}>
-            <Ionicons name="person" size={16} color="#6b7280" />
-            <Text style={styles.detailText}>{item.paidTo}</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <Ionicons name={getPaymentMethodIcon(item.paymentMethod)} size={16} color="#6b7280" />
-            <Text style={styles.detailText}>
-              {item.paymentMethod.charAt(0).toUpperCase() + item.paymentMethod.slice(1)}
-            </Text>
-          </View>
+      <View style={styles.meta}>
+        <View style={styles.metaRow}>
+          <Ionicons name="person-outline" size={16} color="#64748b" />
+          <Text style={styles.metaText}>{item.paidTo}</Text>
         </View>
-        <View style={styles.detailRow}>
-          <View style={styles.detailItem}>
-            <Ionicons name="calendar" size={16} color="#6b7280" />
-            <Text style={styles.detailText}>{item.date}</Text>
-          </View>
-          <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
+
+        <View style={styles.metaRow}>
+          <Ionicons name="calendar-outline" size={16} color="#64748b" />
+          <Text style={styles.metaText}>{item.date}</Text>
+        </View>
+      </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.amount}>₹ {item.amount}</Text>
+        <View style={styles.paymentPill}>
+          <Ionicons name="card-outline" size={14} color="#475569" />
+          <Text style={styles.paymentText}>{item.payment}</Text>
         </View>
       </View>
     </View>
@@ -227,363 +147,205 @@ export default function Expenses() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
-      
+
+      {/* HEADER */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Project Expenses</Text>
-          <Text style={styles.subtitle}>Track and manage your project costs</Text>
-        </View>
-        <TouchableOpacity style={styles.addButton}>
-          <Ionicons name="add" size={20} color="#ffffff" />
-          <Text style={styles.addButtonText}>Add Expense</Text>
-        </TouchableOpacity>
+        <Text style={styles.title}>Expenses</Text>
+        <Text style={styles.subtitle}>Project expense tracking</Text>
       </View>
 
-      {/* Summary Cards */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.summaryScroll}>
-        <View style={[styles.summaryCard, { backgroundColor: '#F0F9FF' }]}>
-          <Ionicons name="trending-up" size={24} color="#0EA5E9" />
-          <Text style={styles.summaryAmount}>{formatCurrency(getTotalExpenses())}</Text>
-          <Text style={styles.summaryLabel}>Total Expenses</Text>
+      {/* SUMMARY */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.summaryRow}>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Total Spent</Text>
+          <Text style={styles.summaryValue}>₹ {totalAmount}</Text>
         </View>
-        <View style={[styles.summaryCard, { backgroundColor: '#F0FDF4' }]}>
-          <Ionicons name="checkmark-circle" size={24} color="#22C55E" />
-          <Text style={styles.summaryAmount}>
-            {formatCurrency(EXPENSES_DATA.filter(e => e.status === 'verified').reduce((sum, e) => sum + e.amount, 0))}
-          </Text>
+        <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Verified</Text>
-        </View>
-        <View style={[styles.summaryCard, { backgroundColor: '#FEFCE8' }]}>
-          <Ionicons name="time" size={24} color="#EAB308" />
-          <Text style={styles.summaryAmount}>
-            {formatCurrency(EXPENSES_DATA.filter(e => e.status === 'pending').reduce((sum, e) => sum + e.amount, 0))}
+          <Text style={styles.summaryValue}>
+            ₹ {EXPENSES.filter(e => e.status === 'VERIFIED').reduce((s, e) => s + e.amount, 0)}
           </Text>
+        </View>
+        <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Pending</Text>
+          <Text style={styles.summaryValue}>
+            ₹ {EXPENSES.filter(e => e.status === 'PENDING').reduce((s, e) => s + e.amount, 0)}
+          </Text>
         </View>
       </ScrollView>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+      {/* SEARCH */}
+      <View style={styles.searchBox}>
+        <Ionicons name="search-outline" size={18} color="#94a3b8" />
         <TextInput
-          placeholder="Search expenses..."
+          placeholder="Search expense..."
+          value={search}
+          onChangeText={setSearch}
           style={styles.searchInput}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#9ca3af"
         />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color="#9ca3af" />
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* Status Filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statusFilterScroll}>
-        {(['all', 'verified', 'pending', 'rejected'] as const).map((status) => (
+      {/* STATUS FILTER */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+        {['ALL', 'VERIFIED', 'PENDING', 'REJECTED'].map(s => (
           <TouchableOpacity
-            key={status}
-            style={[styles.statusChip, filter === status && styles.statusChipActive]}
-            onPress={() => setFilter(status)}
+            key={s}
+            style={[styles.filterBtn, status === s && styles.filterBtnActive]}
+            onPress={() => setStatus(s as any)}
           >
-            <Text style={[styles.statusFilterText, filter === status && styles.statusFilterTextActive]}>
-              {status.charAt(0).toUpperCase() + status.slice(1)}
+            <Text style={[styles.filterText, status === s && styles.filterTextActive]}>
+              {s}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {/* Category Filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryFilterScroll}>
-        {(['all', 'materials', 'labor', 'equipment', 'transport', 'other'] as const).map((category) => (
+      {/* CATEGORY FILTER */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+        {['ALL', 'MATERIALS', 'LABOR', 'EQUIPMENT', 'TRANSPORT', 'OTHER'].map(c => (
           <TouchableOpacity
-            key={category}
-            style={[
-              styles.categoryChip,
-              categoryFilter === category && { backgroundColor: getCategoryColor(category) + '20' }
-            ]}
-            onPress={() => setCategoryFilter(category)}
+            key={c}
+            style={[styles.filterBtn, category === c && styles.filterBtnActiveAlt]}
+            onPress={() => setCategory(c as any)}
           >
-            <Ionicons 
-              name={getCategoryIcon(category)} 
-              size={16} 
-              color={categoryFilter === category ? getCategoryColor(category) : '#6b7280'} 
-            />
-            <Text style={[
-              styles.categoryFilterText,
-              categoryFilter === category && { color: getCategoryColor(category) }
-            ]}>
-              {category.charAt(0).toUpperCase() + category.slice(1)}
+            <Text style={[styles.filterText, category === c && styles.filterTextActiveAlt]}>
+              {c}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {/* Expenses List */}
+      {/* LIST */}
       <FlatList
-        data={filteredExpenses}
-        keyExtractor={(item) => item.id}
-        renderItem={renderExpenseItem}
-        contentContainerStyle={styles.expensesList}
-        showsVerticalScrollIndicator={false}
+        data={filtered}
+        keyExtractor={i => i.id}
+        renderItem={renderItem}
+        contentContainerStyle={{ paddingBottom: 30 }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#3b82f6"
-            colors={['#3b82f6']}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={() => setRefreshing(false)} />
         }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={64} color="#d1d5db" />
-            <Text style={styles.emptyTitle}>No expenses found</Text>
-            <Text style={styles.emptyText}>
-              {searchQuery ? 'Try adjusting your search or filters' : 'No expenses recorded yet'}
-            </Text>
-          </View>
-        }
+        ListEmptyComponent={<Text style={styles.empty}>No expenses found</Text>}
       />
     </SafeAreaView>
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    maxWidth: 220,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  addButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  summaryScroll: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+
+  header: { padding: 20 },
+  title: { fontSize: 30, fontWeight: '800', color: '#0f172a' },
+  subtitle: { color: '#64748b', marginTop: 4 },
+
+  summaryRow: { paddingHorizontal: 20, marginBottom: 12 },
   summaryCard: {
-    width: 160,
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginRight: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    borderColor: '#e2e8f0',
   },
-  summaryAmount: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  searchContainer: {
+  summaryLabel: { fontSize: 12, color: '#64748b' },
+  summaryValue: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
+
+  searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    backgroundColor: '#fff',
     marginHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e2e8f0',
     height: 48,
   },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111827',
-    height: '100%',
-  },
-  statusFilterScroll: {
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  statusChip: {
+  searchInput: { flex: 1, marginLeft: 8 },
+
+  filterRow: { paddingHorizontal: 20, marginBottom: 10 },
+  filterBtn: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
+    paddingVertical: 10,
+    borderRadius: 22,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
-  statusChipActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
+  filterBtnActive: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
   },
-  statusFilterText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
+  filterBtnActiveAlt: {
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
   },
-  statusFilterTextActive: {
-    color: '#ffffff',
-  },
-  categoryFilterScroll: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  categoryFilterText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginLeft: 6,
-  },
-  expensesList: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-  },
-  expenseCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 20,
+  filterText: { fontSize: 13, fontWeight: '700', color: '#64748b' },
+  filterTextActive: { color: '#fff' },
+  filterTextActiveAlt: { color: '#fff' },
+
+  card: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  expenseHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 6,
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  description: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  projectName: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 16,
-  },
-  expenseDetails: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  detailRow: {
+
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between' },
+
+  categoryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  categoryText: { fontSize: 12, fontWeight: '800', color: '#2563eb' },
+
+  statusPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  statusText: { fontSize: 12, fontWeight: '800' },
+
+  desc: { fontSize: 16, fontWeight: '700', marginTop: 10, color: '#0f172a' },
+  project: { fontSize: 13, color: '#64748b', marginBottom: 8 },
+
+  meta: { marginTop: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  metaText: { marginLeft: 8, fontSize: 13, color: '#475569' },
+
+  footer: {
+    marginTop: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  detailItem: {
+  amount: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
+
+  paymentPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    gap: 6,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
   },
-  detailText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#4b5563',
-    flex: 1,
-  },
-  amount: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#6b7280',
+  paymentText: { fontSize: 12, fontWeight: '700', color: '#475569' },
+
+  empty: {
     textAlign: 'center',
-    maxWidth: 280,
-    lineHeight: 20,
+    marginTop: 40,
+    color: '#94a3b8',
   },
 });

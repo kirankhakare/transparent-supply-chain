@@ -11,65 +11,159 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-const USERS = [
-  { id: '1', name: 'Alex Johnson', email: 'alex@company.com', role: 'Admin', status: 'Active' },
-  { id: '2', name: 'Sarah Chen', email: 'sarah@company.com', role: 'Manager', status: 'Active' },
-  { id: '3', name: 'Marcus Rodriguez', email: 'marcus@company.com', role: 'Editor', status: 'Inactive' },
-  { id: '4', name: 'Lisa Williams', email: 'lisa@company.com', role: 'User', status: 'Pending' },
+/* ================= TYPES ================= */
+
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'USER' | 'CONTRACTOR' | 'SUPPLIER' | 'ADMIN';
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
+};
+
+/* ================= DUMMY USERS ================= */
+
+const DUMMY_USERS: User[] = [
+  {
+    id: '1',
+    name: 'Rohit Patil',
+    email: 'rohit@gmail.com',
+    role: 'USER',
+    status: 'ACTIVE',
+  },
+  {
+    id: '2',
+    name: 'James Wilson',
+    email: 'james@contractor.com',
+    role: 'CONTRACTOR',
+    status: 'ACTIVE',
+  },
+  {
+    id: '3',
+    name: 'BuildMaster Pvt Ltd',
+    email: 'supplier@buildmaster.com',
+    role: 'SUPPLIER',
+    status: 'INACTIVE',
+  },
 ];
 
 export default function Users() {
+  const [users, setUsers] = useState<User[]>(DUMMY_USERS);
   const [search, setSearch] = useState('');
 
-  const filteredUsers = USERS.filter(
-    u =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  /* ================= STATUS CHANGE ================= */
 
-  const getStatusColor = (status: string) => {
-    if (status === 'Active') return '#16a34a';
-    if (status === 'Pending') return '#f59e0b';
-    return '#dc2626';
-  };
-
-  const handleStatusChange = (user: any) => {
+  const changeStatus = (user: User) => {
     Alert.alert(
       'Change Status',
-      `Change status for ${user.name}?`,
+      `Change status for ${user.name}`,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Confirm', onPress: () => Alert.alert('Updated', 'Status changed') },
+        {
+          text: 'ACTIVE',
+          onPress: () => updateStatus(user.id, 'ACTIVE'),
+        },
+        {
+          text: 'INACTIVE',
+          onPress: () => updateStatus(user.id, 'INACTIVE'),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
       ]
     );
   };
 
-  const renderItem = ({ item }: any) => (
+  const updateStatus = (id: string, status: User['status']) => {
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === id ? { ...u, status } : u
+      )
+    );
+  };
+
+  /* ================= FILTER ================= */
+
+  const filteredUsers = users.filter(
+    (u) =>
+      u.name.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  /* ================= HELPERS ================= */
+
+  const statusColor = (status: User['status']) => {
+    switch (status) {
+      case 'ACTIVE':
+        return '#16a34a';
+      case 'PENDING':
+        return '#f59e0b';
+      default:
+        return '#dc2626';
+    }
+  };
+
+  const roleColor = (role: User['role']) => {
+    switch (role) {
+      case 'ADMIN':
+        return '#7c3aed';
+      case 'CONTRACTOR':
+        return '#2563eb';
+      case 'SUPPLIER':
+        return '#059669';
+      default:
+        return '#475569';
+    }
+  };
+
+  /* ================= RENDER ================= */
+
+  const renderItem = ({ item }: { item: User }) => (
     <View style={styles.card}>
       <View style={{ flex: 1 }}>
         <Text style={styles.name}>{item.name}</Text>
         <Text style={styles.email}>{item.email}</Text>
 
         <View style={styles.row}>
-          <Text style={styles.role}>{item.role}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+          <Text style={[styles.role, { color: roleColor(item.role) }]}>
+            {item.role}
+          </Text>
+
+          <TouchableOpacity
+            style={[
+              styles.statusBadge,
+              { backgroundColor: statusColor(item.status) },
+            ]}
+            onPress={() => changeStatus(item)}
+          >
             <Text style={styles.statusText}>{item.status}</Text>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 
-      <TouchableOpacity onPress={() => handleStatusChange(item)}>
-        <Ionicons name="ellipsis-vertical" size={20} color="#64748b" />
+      <TouchableOpacity onPress={() => changeStatus(item)}>
+        <Ionicons
+          name="ellipsis-vertical"
+          size={20}
+          color="#64748b"
+        />
       </TouchableOpacity>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Users</Text>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Users</Text>
+        <Text style={styles.subtitle}>
+          All system users (Admin / Contractor / Supplier / User)
+        </Text>
+      </View>
 
+      {/* SEARCH */}
       <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color="#64748b" />
+        <Ionicons name="search-outline" size={18} color="#64748b" />
         <TextInput
           placeholder="Search user..."
           value={search}
@@ -78,10 +172,12 @@ export default function Users() {
         />
       </View>
 
+      {/* LIST */}
       <FlatList
         data={filteredUsers}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <Text style={styles.empty}>No users found</Text>
         }
@@ -90,74 +186,96 @@ export default function Users() {
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
     padding: 16,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#0f172a',
+
+  header: {
     marginBottom: 16,
   },
+
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+
+  subtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 4,
+  },
+
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#cbd5e1',
     paddingHorizontal: 12,
-    height: 44,
+    height: 48,
     marginBottom: 16,
   },
+
   searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 15,
   },
+
   card: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     flexDirection: 'row',
+    justifyContent: 'space-between',
   },
+
   name: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#0f172a',
   },
+
   email: {
     fontSize: 13,
     color: '#64748b',
     marginTop: 2,
   },
+
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
     gap: 10,
   },
+
   role: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#2563eb',
+    fontWeight: '700',
   },
+
   statusBadge: {
     paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
+
   statusText: {
     fontSize: 12,
-    color: '#fff',
-    fontWeight: '600',
+    color: '#ffffff',
+    fontWeight: '700',
   },
+
   empty: {
     textAlign: 'center',
     color: '#64748b',

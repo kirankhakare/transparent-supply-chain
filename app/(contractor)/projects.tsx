@@ -13,187 +13,176 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+/* ================= TYPES ================= */
+
+type ProjectStatus = 'ACTIVE' | 'COMPLETED' | 'PENDING';
+
 type Project = {
   id: string;
   name: string;
-  client: string;
+  clientName: string;
+  clientEmail: string;
   location: string;
-  status: 'active' | 'completed' | 'pending';
+  status: ProjectStatus;
   progress: number;
-  startDate: string;
   endDate: string;
   budget: string;
   completedTasks: number;
   totalTasks: number;
 };
 
-const PROJECTS_DATA: Project[] = [
+/* ================= DUMMY ASSIGNED PROJECTS ================= */
+
+const PROJECTS: Project[] = [
   {
-    id: '1',
-    name: 'Modern Residence Construction',
-    client: 'Johnson Family',
-    location: '123 Main St, New York',
-    status: 'active',
+    id: 'p1',
+    name: 'Apartment Construction',
+    clientName: 'Rohit Patil',
+    clientEmail: 'rohit@gmail.com',
+    location: 'Pune, Maharashtra',
+    status: 'ACTIVE',
     progress: 65,
-    startDate: '2024-01-15',
-    endDate: '2024-06-30',
-    budget: '$250,000',
+    endDate: '30 Jun 2024',
+    budget: '₹25,00,000',
     completedTasks: 13,
     totalTasks: 20,
   },
   {
-    id: '2',
-    name: 'Commercial Office Renovation',
-    client: 'TechCorp Inc.',
-    location: '456 Business Ave, Chicago',
-    status: 'active',
+    id: 'p2',
+    name: 'Office Renovation',
+    clientName: 'Amit Sharma',
+    clientEmail: 'amit@gmail.com',
+    location: 'Mumbai',
+    status: 'ACTIVE',
     progress: 40,
-    startDate: '2024-02-01',
-    endDate: '2024-08-15',
-    budget: '$180,000',
+    endDate: '15 Aug 2024',
+    budget: '₹18,00,000',
     completedTasks: 8,
     totalTasks: 20,
   },
   {
-    id: '3',
-    name: 'Shopping Mall Extension',
-    client: 'Metro Developers',
-    location: '789 Mall Road, Miami',
-    status: 'pending',
+    id: 'p3',
+    name: 'Villa Interior',
+    clientName: 'Neha Joshi',
+    clientEmail: 'neha@gmail.com',
+    location: 'Nagpur',
+    status: 'PENDING',
     progress: 10,
-    startDate: '2024-03-01',
-    endDate: '2024-10-31',
-    budget: '$500,000',
+    endDate: '31 Oct 2024',
+    budget: '₹12,00,000',
     completedTasks: 2,
-    totalTasks: 25,
-  },
-  {
-    id: '4',
-    name: 'Hotel Interior Design',
-    client: 'Luxury Stays Co.',
-    location: '321 Resort Blvd, Las Vegas',
-    status: 'completed',
-    progress: 100,
-    startDate: '2023-11-01',
-    endDate: '2024-02-28',
-    budget: '$320,000',
-    completedTasks: 18,
     totalTasks: 18,
   },
 ];
 
 export default function Projects() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'pending'>('all');
+  const [filter, setFilter] = useState<'ALL' | ProjectStatus>('ALL');
   const router = useRouter();
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise((r) => setTimeout(r, 1200));
     setRefreshing(false);
   };
 
-  const filteredProjects = PROJECTS_DATA.filter(project => {
-    if (filter !== 'all' && project.status !== filter) return false;
-    if (searchQuery) {
-      return project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             project.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             project.location.toLowerCase().includes(searchQuery.toLowerCase());
-    }
-    return true;
+  const filteredProjects = PROJECTS.filter((p) => {
+    if (filter !== 'ALL' && p.status !== filter) return false;
+    if (!search) return true;
+
+    return (
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.clientName.toLowerCase().includes(search.toLowerCase()) ||
+      p.location.toLowerCase().includes(search.toLowerCase())
+    );
   });
 
-  const getStatusColor = (status: Project['status']) => {
+  const statusColor = (status: ProjectStatus) => {
     switch (status) {
-      case 'active': return '#10b981';
-      case 'completed': return '#3b82f6';
-      case 'pending': return '#f59e0b';
-      default: return '#6b7280';
+      case 'ACTIVE':
+        return '#10b981';
+      case 'COMPLETED':
+        return '#3b82f6';
+      case 'PENDING':
+        return '#f59e0b';
     }
   };
 
-  const getStatusBgColor = (status: Project['status']) => {
-    switch (status) {
-      case 'active': return 'rgba(16, 185, 129, 0.1)';
-      case 'completed': return 'rgba(59, 130, 246, 0.1)';
-      case 'pending': return 'rgba(245, 158, 11, 0.1)';
-      default: return 'rgba(107, 114, 128, 0.1)';
-    }
-  };
-
-  const navigateToOrders = (projectId: string) => {
+  const goToOrders = (projectId: string) => {
     router.push(`/(contractor)/orders?projectId=${projectId}`);
   };
 
-  const renderProjectCard = (project: Project) => (
-    <TouchableOpacity 
-      key={project.id}
-      style={styles.projectCard}
+  const renderCard = (p: Project) => (
+    <TouchableOpacity
+      key={p.id}
+      style={styles.card}
       activeOpacity={0.9}
-      onPress={() => navigateToOrders(project.id)}
+      onPress={() => goToOrders(p.id)}
     >
+      {/* HEADER */}
       <View style={styles.cardHeader}>
-        <View style={styles.projectInfo}>
-          <View style={styles.projectIcon}>
-            <Ionicons name="construct" size={24} color="#3b82f6" />
-          </View>
-          <View style={styles.projectText}>
-            <Text style={styles.projectName} numberOfLines={1}>{project.name}</Text>
-            <Text style={styles.projectClient}>{project.client}</Text>
-          </View>
+        <View style={styles.projectTitleBox}>
+          <Ionicons name="briefcase-outline" size={22} color="#2563eb" />
+          <Text style={styles.projectName}>{p.name}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusBgColor(project.status) }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(project.status) }]}>
-            {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: statusColor(p.status) + '22' },
+          ]}
+        >
+          <Text style={[styles.statusText, { color: statusColor(p.status) }]}>
+            {p.status}
           </Text>
         </View>
       </View>
 
-      <View style={styles.projectDetails}>
-        <View style={styles.detailItem}>
-          <Ionicons name="location" size={16} color="#6b7280" />
-          <Text style={styles.detailText} numberOfLines={1}>{project.location}</Text>
-        </View>
-        <View style={styles.detailItem}>
-          <Ionicons name="calendar" size={16} color="#6b7280" />
-          <Text style={styles.detailText}>{project.endDate}</Text>
-        </View>
+      {/* CLIENT */}
+      <View style={styles.infoRow}>
+        <Ionicons name="person-outline" size={16} color="#475569" />
+        <Text style={styles.infoText}>{p.clientName}</Text>
       </View>
 
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressLabels}>
-          <Text style={styles.progressText}>Progress</Text>
-          <Text style={styles.progressPercentage}>{project.progress}%</Text>
+      <View style={styles.infoRow}>
+        <Ionicons name="mail-outline" size={16} color="#475569" />
+        <Text style={styles.infoText}>{p.clientEmail}</Text>
+      </View>
+
+      <View style={styles.infoRow}>
+        <Ionicons name="location-outline" size={16} color="#475569" />
+        <Text style={styles.infoText}>{p.location}</Text>
+      </View>
+
+      {/* PROGRESS */}
+      <View style={styles.progressBox}>
+        <View style={styles.progressHeader}>
+          <Text style={styles.progressLabel}>Progress</Text>
+          <Text style={styles.progressValue}>{p.progress}%</Text>
         </View>
+
         <View style={styles.progressBar}>
-          <View 
+          <View
             style={[
-              styles.progressFill, 
-              { 
-                width: `${project.progress}%`,
-                backgroundColor: getStatusColor(project.status)
-              }
-            ]} 
+              styles.progressFill,
+              { width: `${p.progress}%`, backgroundColor: statusColor(p.status) },
+            ]}
           />
         </View>
-        <Text style={styles.tasksText}>
-          {project.completedTasks} of {project.totalTasks} tasks completed
+
+        <Text style={styles.taskText}>
+          {p.completedTasks} / {p.totalTasks} tasks completed
         </Text>
       </View>
 
-      <View style={styles.cardFooter}>
-        <View style={styles.budgetContainer}>
-          <Ionicons name="cash" size={16} color="#10b981" />
-          <Text style={styles.budgetText}>{project.budget}</Text>
-        </View>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => navigateToOrders(project.id)}
-        >
-          <Text style={styles.actionButtonText}>View Orders</Text>
-          <Ionicons name="arrow-forward" size={16} color="#3b82f6" />
+      {/* FOOTER */}
+      <View style={styles.footer}>
+        <Text style={styles.budget}>{p.budget}</Text>
+
+        <TouchableOpacity style={styles.orderBtn}>
+          <Text style={styles.orderBtnText}>View Orders</Text>
+          <Ionicons name="arrow-forward-outline" size={16} color="#2563eb" />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -202,82 +191,64 @@ export default function Projects() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
-      
-      <ScrollView 
-        style={styles.scrollView}
+
+      <ScrollView
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#3b82f6"
-            colors={['#3b82f6']}
+            colors={['#2563eb']}
           />
         }
       >
-        {/* Header */}
+        {/* HEADER */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>My Projects</Text>
-            <Text style={styles.subtitle}>Manage your construction projects</Text>
-          </View>
-          <View style={styles.headerStats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{PROJECTS_DATA.length}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>
-                {PROJECTS_DATA.filter(p => p.status === 'active').length}
-              </Text>
-              <Text style={styles.statLabel}>Active</Text>
-            </View>
-          </View>
+          <Text style={styles.title}>My Projects</Text>
+          <Text style={styles.subtitle}>
+            Assigned projects with client details
+          </Text>
         </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+        {/* SEARCH */}
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={18} color="#94a3b8" />
           <TextInput
-            placeholder="Search projects..."
+            placeholder="Search project..."
+            value={search}
+            onChangeText={setSearch}
             style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#9ca3af"
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* Filter Chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-          {(['all', 'active', 'completed', 'pending'] as const).map((status) => (
+        {/* FILTER */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+          {['ALL', 'ACTIVE', 'COMPLETED', 'PENDING'].map((f) => (
             <TouchableOpacity
-              key={status}
-              style={[styles.filterChip, filter === status && styles.filterChipActive]}
-              onPress={() => setFilter(status)}
+              key={f}
+              style={[
+                styles.filterChip,
+                filter === f && styles.filterChipActive,
+              ]}
+              onPress={() => setFilter(f as any)}
             >
-              <Text style={[styles.filterText, filter === status && styles.filterTextActive]}>
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+              <Text
+                style={[
+                  styles.filterText,
+                  filter === f && styles.filterTextActive,
+                ]}
+              >
+                {f}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        {/* Projects List */}
-        <View style={styles.projectsList}>
+        {/* LIST */}
+        <View style={{ paddingBottom: 30 }}>
           {filteredProjects.length > 0 ? (
-            filteredProjects.map(renderProjectCard)
+            filteredProjects.map(renderCard)
           ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="construct-outline" size={64} color="#d1d5db" />
-              <Text style={styles.emptyTitle}>No projects found</Text>
-              <Text style={styles.emptyText}>
-                {searchQuery ? 'Try a different search term' : 'No projects assigned yet'}
-              </Text>
-            </View>
+            <Text style={styles.empty}>No projects found</Text>
           )}
         </View>
       </ScrollView>
@@ -285,251 +256,116 @@ export default function Projects() {
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  headerStats: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  searchContainer: {
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+
+  header: { padding: 20 },
+  title: { fontSize: 28, fontWeight: '800', color: '#0f172a' },
+  subtitle: { color: '#64748b', marginTop: 4 },
+
+  searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    backgroundColor: '#fff',
     marginHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    height: 48,
+    borderColor: '#e2e8f0',
+    height: 46,
   },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111827',
-    height: '100%',
-  },
-  filterScroll: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 15 },
+
+  filterRow: { paddingHorizontal: 20, marginBottom: 16 },
   filterChip: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#ffffff',
     borderRadius: 20,
-    marginRight: 8,
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#e2e8f0',
+    marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
   },
-  filterText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  filterTextActive: {
-    color: '#ffffff',
-  },
-  projectsList: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-  },
-  projectCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 20,
+  filterText: { color: '#64748b', fontWeight: '600' },
+  filterTextActive: { color: '#fff' },
+
+  card: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
     marginBottom: 16,
+    borderRadius: 18,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    borderColor: '#e2e8f0',
   },
+
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 10,
   },
-  projectInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  projectIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  projectText: {
-    flex: 1,
-  },
-  projectName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  projectClient: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
+  projectTitleBox: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  projectName: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
+
   statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  projectDetails: {
-    marginBottom: 20,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  detailText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#4b5563',
-    flex: 1,
-  },
-  progressContainer: {
-    marginBottom: 20,
-  },
-  progressLabels: {
+  statusText: { fontSize: 12, fontWeight: '700' },
+
+  infoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  infoText: { marginLeft: 8, fontSize: 13, color: '#475569' },
+
+  progressBox: { marginTop: 14 },
+  progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  progressText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  progressPercentage: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
+  progressLabel: { fontSize: 13, color: '#475569' },
+  progressValue: { fontWeight: '700' },
+
   progressBar: {
     height: 8,
     backgroundColor: '#e5e7eb',
     borderRadius: 4,
-    marginBottom: 8,
     overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  tasksText: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  cardFooter: {
+  progressFill: { height: '100%' },
+  taskText: { fontSize: 12, color: '#64748b', marginTop: 4 },
+
+  footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  budgetContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  budgetText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginLeft: 6,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.2)',
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3b82f6',
-    marginRight: 8,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
     marginTop: 16,
-    marginBottom: 8,
   },
-  emptyText: {
-    fontSize: 14,
-    color: '#6b7280',
+  budget: { fontSize: 17, fontWeight: '800', color: '#0f172a' },
+
+  orderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(37,99,235,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(37,99,235,0.25)',
+  },
+  orderBtnText: { color: '#2563eb', fontWeight: '700' },
+
+  empty: {
     textAlign: 'center',
-    maxWidth: 280,
-    lineHeight: 20,
+    color: '#94a3b8',
+    marginTop: 40,
   },
 });
