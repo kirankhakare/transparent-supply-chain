@@ -2,7 +2,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'reac
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-const BASE_URL =  process.env.EXPO_PUBLIC_API_URL;
+// const BASE_URL =  process.env.EXPO_PUBLIC_API_URL;
+import { BASE_URL } from '../../services/api';
 
 export default function Login() {
   const router = useRouter();
@@ -11,7 +12,14 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const wakeServer = async () => {
+  try {
+    await fetch(`${BASE_URL}/health`);
+  } catch (e) {}
+};
+
  const handleLogin = async () => {
+  await wakeServer(); 
   if (!username || !password) {
     Alert.alert('Error', 'All fields are required');
     return;
