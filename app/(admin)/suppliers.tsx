@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -5,79 +6,80 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-
-/* ================= DUMMY SUPPLIERS ================= */
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API } from '../../services/api';
 
 type Supplier = {
-  id: string;
-  name: string;
-  category: string;
-  contact: string;
+  _id: string;
+  username: string;
   email: string;
-  phone: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  isApproved: boolean;
 };
 
-const DUMMY_SUPPLIERS: Supplier[] = [
-  {
-    id: '1',
-    name: 'BuildMaster Supplies',
-    category: 'Construction',
-    contact: 'Rohit Patil',
-    email: 'rohit@buildmaster.com',
-    phone: '9876543210',
-    status: 'ACTIVE',
-  },
-  {
-    id: '2',
-    name: 'SteelCore Pvt Ltd',
-    category: 'Raw Material',
-    contact: 'Amit Sharma',
-    email: 'amit@steelcore.com',
-    phone: '9123456789',
-    status: 'INACTIVE',
-  },
-  {
-    id: '3',
-    name: 'CementPlus',
-    category: 'Construction',
-    contact: 'Neha Joshi',
-    email: 'neha@cementplus.com',
-    phone: '9012345678',
-    status: 'ACTIVE',
-  },
-];
-
 export default function Suppliers() {
-  const [suppliers, setSuppliers] = useState(DUMMY_SUPPLIERS);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  /* ================= TOGGLE STATUS ================= */
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
 
-  const toggleStatus = (id: string) => {
-    setSuppliers((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              status: s.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
-            }
-          : s
-      )
-    );
+  /* ================= FETCH ================= */
+
+  const fetchSuppliers = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+
+      const res = await fetch(API('/api/admin/suppliers'), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      setSuppliers(data);
+    } catch (err) {
+      console.log('Supplier fetch error', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= STATUS UPDATE ================= */
+
+  const toggleStatus = async (supplier: Supplier) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+
+      await fetch(
+        API(`/api/admin/suppliers/${supplier._id}/status`),
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            isApproved: !supplier.isApproved,
+          }),
+        }
+      );
+
+      fetchSuppliers();
+    } catch (err) {
+      console.log('Status update error', err);
+    }
   };
 
   /* ================= FILTER ================= */
 
   const filteredSuppliers = suppliers.filter(
     (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.contact.toLowerCase().includes(search.toLowerCase())
+      s.username.toLowerCase().includes(search.toLowerCase()) ||
+      s.email.toLowerCase().includes(search.toLowerCase())
   );
 
   /* ================= RENDER ================= */
@@ -86,63 +88,43 @@ export default function Suppliers() {
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.category}>{item.category}</Text>
+          <Text style={styles.name}>{item.username}</Text>
+          
         </View>
 
         <TouchableOpacity
           style={[
             styles.statusBadge,
             {
-              backgroundColor:
-                item.status === 'ACTIVE'
-                  ? 'rgba(16,185,129,0.15)'
-                  : 'rgba(239,68,68,0.15)',
+              backgroundColor: item.isApproved
+                ? 'rgba(16,185,129,0.15)'
+                : 'rgba(239,68,68,0.15)',
             },
           ]}
-          onPress={() => toggleStatus(item.id)}
+          onPress={() => toggleStatus(item)}
         >
           <Text
-            style={[
-              styles.statusText,
-              { color: item.status === 'ACTIVE' ? '#10b981' : '#ef4444' },
-            ]}
+            style={{
+              color: item.isApproved ? '#10b981' : '#ef4444',
+              fontWeight: '700',
+            }}
           >
-            {item.status}
+            {item.isApproved ? 'ACTIVE' : 'INACTIVE'}
           </Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.infoRow}>
-        <Ionicons name="person-outline" size={16} color="#64748b" />
-        <Text style={styles.infoText}>{item.contact}</Text>
-      </View>
-
-      <View style={styles.infoRow}>
-        <Ionicons name="mail-outline" size={16} color="#64748b" />
-        <Text style={styles.infoText}>{item.email}</Text>
-      </View>
-
-      <View style={styles.infoRow}>
-        <Ionicons name="call-outline" size={16} color="#64748b" />
-        <Text style={styles.infoText}>{item.phone}</Text>
       </View>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+      <Text style={styles.title}>Suppliers</Text>
+      <Text style={styles.subtitle}>
+        All registered suppliers
+      </Text>
 
-      {/* HEADER */}
-      <View style={styles.pageHeader}>
-        <Text style={styles.title}>Suppliers</Text>
-        <Text style={styles.subtitle}>All registered suppliers</Text>
-      </View>
-
-      {/* SEARCH */}
       <View style={styles.searchBox}>
-        <Ionicons name="search-outline" size={20} color="#94a3b8" />
+        <Ionicons name="search-outline" size={18} color="#94a3b8" />
         <TextInput
           placeholder="Search supplier..."
           value={search}
@@ -151,21 +133,22 @@ export default function Suppliers() {
         />
       </View>
 
-      {/* LIST */}
-      <FlatList
-        data={filteredSuppliers}
-        keyExtractor={(item) => item.id}
-        renderItem={renderSupplier}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <Text style={{ textAlign: 'center', marginTop: 40 }}>
-            No suppliers found
-          </Text>
-        }
-      />
+      {loading ? (
+        <ActivityIndicator size="large" color="#2563eb" />
+      ) : (
+        <FlatList
+          data={filteredSuppliers}
+          keyExtractor={(item) => item._id}
+          renderItem={renderSupplier}
+          ListEmptyComponent={
+            <Text>No suppliers found</Text>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
+
 
 /* ================= STYLES ================= */
 

@@ -14,22 +14,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { API } from '../../services/api'; // 👈 API helper import
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
-
-type RoleType = 'USER' | 'CONTRACTOR' | 'SUPPLIER';
+type RoleType = 'user' | 'contractor' | 'supplier';
 
 export default function CreateUser() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<RoleType>('USER');
+  const [role, setRole] = useState<RoleType>('user');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleCreateUser = async () => {
-    if (!username || !password || !confirmPassword || !role) {
+    if (!username || !password || !confirmPassword) {
       Alert.alert('Error', 'All fields are required');
       return;
     }
@@ -49,7 +48,7 @@ export default function CreateUser() {
     try {
       const token = await AsyncStorage.getItem('token');
 
-      const res = await fetch(`${BASE_URL}/api/auth/register`, {
+      const res = await fetch(API('/api/admin/create-user'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,7 +57,7 @@ export default function CreateUser() {
         body: JSON.stringify({
           username,
           password,
-          role,
+          role, // 👈 lowercase role
         }),
       });
 
@@ -69,17 +68,21 @@ export default function CreateUser() {
         return;
       }
 
-      Alert.alert('Success ✅', `${role} created successfully`, [
-        {
-          text: 'Create Another',
-          onPress: () => {
-            setUsername('');
-            setPassword('');
-            setConfirmPassword('');
-            setRole('USER');
+      Alert.alert(
+        'Success ✅',
+        `${role.toUpperCase()} created successfully`,
+        [
+          {
+            text: 'Create Another',
+            onPress: () => {
+              setUsername('');
+              setPassword('');
+              setConfirmPassword('');
+              setRole('user');
+            },
           },
-        },
-      ]);
+        ]
+      );
     } catch (error) {
       Alert.alert('Network Error', 'Server not reachable');
     } finally {
@@ -108,42 +111,48 @@ export default function CreateUser() {
           {/* FORM */}
           <View style={styles.card}>
             {/* ROLE SELECTION */}
-            {/* ROLE SELECTION */}
-<Text style={styles.label}>Select Role *</Text>
+            <Text style={styles.label}>Select Role *</Text>
 
-<View style={styles.roleRow}>
-  {[
-    { key: 'USER', label: 'USER', icon: 'person-outline' },
-    { key: 'CONTRACTOR', label: 'CONTRACTOR', icon: 'construct-outline' },
-    { key: 'SUPPLIER', label: 'SUPPLIER', icon: 'business-outline' },
-  ].map((item) => (
-    <TouchableOpacity
-      key={item.key}
-      style={[
-        styles.roleCard,
-        role === item.key && styles.roleCardActive,
-      ]}
-      activeOpacity={0.85}
-      onPress={() => setRole(item.key as any)}
-    >
-      <Ionicons
-        name={item.icon as any}
-        size={18}
-        color={role === item.key ? '#ffffff' : '#475569'}
-        style={{ marginBottom: 6 }}
-      />
-      <Text
-        style={[
-          styles.roleLabel,
-          role === item.key && styles.roleLabelActive,
-        ]}
-      >
-        {item.label}
-      </Text>
-    </TouchableOpacity>
-  ))}
-</View>
-
+            <View style={styles.roleRow}>
+              {[
+                { key: 'user', label: 'USER', icon: 'person-outline' },
+                {
+                  key: 'contractor',
+                  label: 'CONTRACTOR',
+                  icon: 'construct-outline',
+                },
+                {
+                  key: 'supplier',
+                  label: 'SUPPLIER',
+                  icon: 'business-outline',
+                },
+              ].map((item) => (
+                <TouchableOpacity
+                  key={item.key}
+                  style={[
+                    styles.roleCard,
+                    role === item.key && styles.roleCardActive,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={() => setRole(item.key as RoleType)}
+                >
+                  <Ionicons
+                    name={item.icon as any}
+                    size={18}
+                    color={role === item.key ? '#ffffff' : '#475569'}
+                    style={{ marginBottom: 6 }}
+                  />
+                  <Text
+                    style={[
+                      styles.roleLabel,
+                      role === item.key && styles.roleLabelActive,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             {/* USERNAME */}
             <Text style={styles.label}>Username *</Text>
@@ -169,7 +178,9 @@ export default function CreateUser() {
                 value={password}
                 onChangeText={setPassword}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+              >
                 <Ionicons
                   name={showPassword ? 'eye-off' : 'eye'}
                   size={20}
@@ -204,10 +215,7 @@ export default function CreateUser() {
 
             {/* SUBMIT */}
             <TouchableOpacity
-              style={[
-                styles.button,
-                loading && { opacity: 0.7 },
-              ]}
+              style={[styles.button, loading && { opacity: 0.7 }]}
               onPress={handleCreateUser}
               disabled={loading}
             >
@@ -221,7 +229,7 @@ export default function CreateUser() {
                     color="#fff"
                   />
                   <Text style={styles.buttonText}>
-                    Create {role}
+                    Create {role.toUpperCase()}
                   </Text>
                 </>
               )}
@@ -351,6 +359,7 @@ roleLabelActive: {
   },
   button: {
     marginTop: 30,
+    marginBottom :20,
     backgroundColor: '#2563eb',
     borderRadius: 14,
     paddingVertical: 18,

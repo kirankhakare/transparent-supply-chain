@@ -1,7 +1,7 @@
 import { Drawer } from 'expo-router/drawer';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, TouchableOpacity, Alert, StyleSheet} from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -49,7 +49,7 @@ export default function AdminLayout() {
     <GestureHandlerRootView style={styles.container}>
       <Drawer
         screenOptions={{
-          headerStyle: { 
+          headerStyle: {
             backgroundColor: '#0f172a',
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
@@ -62,8 +62,8 @@ export default function AdminLayout() {
             fontWeight: '600',
             fontSize: 18,
           },
-          drawerStyle: { 
-            backgroundColor: '#0f172a', 
+          drawerStyle: {
+            backgroundColor: '#0f172a',
             width: 280,
           },
           drawerActiveTintColor: '#38bdf8',
@@ -98,43 +98,48 @@ export default function AdminLayout() {
 
             {/* Navigation Items */}
             <View style={styles.drawerItems}>
-              {props.state.routeNames.map((route, index) => {
-                const focused = index === props.state.index;
-                const iconName = getIcon(route, focused);
-                
-                return (
-                  <TouchableOpacity
-                    key={route}
-                    onPress={() => props.navigation.navigate(route)}
-                    style={[
-                      styles.drawerItem,
-                      focused && styles.drawerItemActive,
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.drawerItemContent}>
-                      <Ionicons 
-                        name={iconName} 
-                        size={22} 
-                        color={focused ? '#38bdf8' : '#94a3b8'} 
-                        style={styles.icon}
-                      />
-                      <Text
-                        style={[
-                          styles.drawerItemText,
-                          focused && styles.drawerItemTextActive,
-                        ]}
-                      >
-                        {route.charAt(0).toUpperCase() + route.slice(1)}
-                      </Text>
-                    </View>
-                    {focused && (
-                      <View style={styles.activeIndicator} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+  {props.state.routeNames
+    .filter(
+      (route) =>
+        !route.startsWith('(hidden)')
+    )
+    .map((route, index) => {
+      const focused = index === props.state.index;
+      const iconName = getIcon(route, focused);
+
+      return (
+        <TouchableOpacity
+          key={route}
+          onPress={() => props.navigation.navigate(route)}
+          style={[
+            styles.drawerItem,
+            focused && styles.drawerItemActive,
+          ]}
+          activeOpacity={0.7}
+        >
+          <View style={styles.drawerItemContent}>
+            <Ionicons
+              name={iconName}
+              size={22}
+              color={focused ? '#38bdf8' : '#94a3b8'}
+              style={styles.icon}
+            />
+            <Text
+              style={[
+                styles.drawerItemText,
+                focused && styles.drawerItemTextActive,
+              ]}
+            >
+              {route.charAt(0).toUpperCase() + route.slice(1)}
+            </Text>
+          </View>
+
+          {focused && <View style={styles.activeIndicator} />}
+        </TouchableOpacity>
+      );
+    })}
+</View>
+
 
             {/* Spacer */}
             <View style={styles.spacer} />
@@ -153,71 +158,101 @@ export default function AdminLayout() {
           </SafeAreaView>
         )}
       >
-        <Drawer.Screen 
-          name="dashboard" 
-          options={{ 
+        <Drawer.Screen
+          name="dashboard"
+          options={{
             title: 'Dashboard',
             drawerIcon: ({ focused, size }) => (
-              <Ionicons 
-                name={focused ? 'home' : 'home-outline'} 
-                size={size} 
-                color={focused ? '#38bdf8' : '#94a3b8'} 
+              <Ionicons
+                name={focused ? 'home' : 'home-outline'}
+                size={size}
+                color={focused ? '#38bdf8' : '#94a3b8'}
               />
             ),
-          }} 
+          }}
         />
-        <Drawer.Screen 
-          name="createUser" 
-          options={{ 
+        <Drawer.Screen
+          name="createUser"
+          options={{
             title: 'Create User',
             drawerIcon: ({ focused, size }) => (
-              <Ionicons 
-                name={focused ? 'person-add' : 'person-add-outline'} 
-                size={size} 
-                color={focused ? '#38bdf8' : '#94a3b8'} 
+              <Ionicons
+                name={focused ? 'person-add' : 'person-add-outline'}
+                size={size}
+                color={focused ? '#38bdf8' : '#94a3b8'}
               />
             ),
-          }} 
+          }}
         />
-        <Drawer.Screen 
-          name="suppliers" 
-          options={{ 
+        <Drawer.Screen
+          name="suppliers"
+          options={{
             title: 'Suppliers',
             drawerIcon: ({ focused, size }) => (
-              <Ionicons 
-                name={focused ? 'business' : 'business-outline'} 
-                size={size} 
-                color={focused ? '#38bdf8' : '#94a3b8'} 
+              <Ionicons
+                name={focused ? 'business' : 'business-outline'}
+                size={size}
+                color={focused ? '#38bdf8' : '#94a3b8'}
               />
             ),
-          }} 
+          }}
         />
-        <Drawer.Screen 
-          name="contractors" 
-          options={{ 
+        <Drawer.Screen
+          name="contractors"
+          options={{
             title: 'Contractors',
             drawerIcon: ({ focused, size }) => (
-              <Ionicons 
-                name={focused ? 'construct' : 'construct-outline'} 
-                size={size} 
-                color={focused ? '#38bdf8' : '#94a3b8'} 
+              <Ionicons
+                name={focused ? 'construct' : 'construct-outline'}
+                size={size}
+                color={focused ? '#38bdf8' : '#94a3b8'}
               />
             ),
-          }} 
+          }}
         />
-        <Drawer.Screen 
-          name="users" 
-          options={{ 
+        <Drawer.Screen
+          name="users"
+          options={{
             title: 'Users',
             drawerIcon: ({ focused, size }) => (
-              <Ionicons 
-                name={focused ? 'people' : 'people-outline'} 
-                size={size} 
-                color={focused ? '#38bdf8' : '#94a3b8'} 
+              <Ionicons
+                name={focused ? 'people' : 'people-outline'}
+                size={size}
+                color={focused ? '#38bdf8' : '#94a3b8'}
               />
             ),
-          }} 
+          }}
         />
+
+
+        <Drawer.Screen
+          name="(hidden)/analytics"
+          options={{
+            drawerItemStyle: { display: 'none' },
+            headerShown: true,
+            title: 'Analytics',
+          }}
+        />
+
+        <Drawer.Screen
+          name="(hidden)/user-details"
+          options={{
+            drawerItemStyle: { display: 'none' },
+            headerShown: true,
+            title: 'User Details',
+          }}
+        />
+        <Drawer.Screen
+          name="(hidden)/assign-contractor"
+          options={{
+            drawerItemStyle: { display: 'none' },
+            headerShown: true,
+            title: 'User Details',
+          }}
+        />
+
+
+
       </Drawer>
     </GestureHandlerRootView>
   );

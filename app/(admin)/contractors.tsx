@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,88 +6,82 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API } from '../../services/api';
 
 /* ================= TYPES ================= */
 
-type Project = {
-  projectId: string;
-  projectName: string;
+type AssignedUser = {
+  userId: string;
   userName: string;
-  userEmail: string;
+  userStatus: 'ACTIVE' | 'INACTIVE';
+  projectStatus:
+    | 'NOT_STARTED'
+    | 'IN_PROGRESS'
+    | 'DELAYED'
+    | 'COMPLETED';
+  progress: number;
+  deadline: string;
 };
 
 type Contractor = {
   id: string;
   name: string;
-  company: string;
   status: 'ACTIVE' | 'INACTIVE';
-  project: Project | null;
+  users: AssignedUser[];
 };
 
-/* ================= DUMMY DATA ================= */
-
-const DUMMY_CONTRACTORS: Contractor[] = [
-  {
-    id: '1',
-    name: 'James Wilson',
-    company: 'Wilson Construction',
-    status: 'ACTIVE',
-    project: {
-      projectId: 'p1',
-      projectName: 'Apartment Construction',
-      userName: 'Rohit Patil',
-      userEmail: 'rohit@gmail.com',
-    },
-  },
-  {
-    id: '2',
-    name: 'Sarah Chen',
-    company: 'Chen Electrical',
-    status: 'ACTIVE',
-    project: {
-      projectId: 'p2',
-      projectName: 'Office Renovation',
-      userName: 'Amit Sharma',
-      userEmail: 'amit@gmail.com',
-    },
-  },
-  {
-    id: '3',
-    name: 'Marcus Rodriguez',
-    company: 'Rodriguez Plumbing',
-    status: 'INACTIVE',
-    project: null,
-  },
-];
+/* ================= SCREEN ================= */
 
 export default function Contractors() {
-  const [contractors, setContractors] = useState<Contractor[]>(DUMMY_CONTRACTORS);
+  const [contractors, setContractors] = useState<Contractor[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  /* ================= TOGGLE STATUS ================= */
+  useEffect(() => {
+    fetchContractors();
+  }, []);
 
-  const toggleStatus = (id: string) => {
-    setContractors((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              status: c.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
-            }
-          : c
-      )
-    );
+  const fetchContractors = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('token');
+
+      const res = await fetch(API('/api/admin/contractors-with-users'), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const json = await res.json();
+      setContractors(Array.isArray(json) ? json : []);
+    } catch (err) {
+      console.log('Contractor fetch error', err);
+      setContractors([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  /* ================= FILTER ================= */
+  /* ================= HELPERS ================= */
 
-  const filtered = contractors.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.company.toLowerCase().includes(search.toLowerCase())
+  const projectStatusColor = (status: AssignedUser['projectStatus']) => {
+    switch (status) {
+      case 'COMPLETED':
+        return '#16a34a';
+      case 'IN_PROGRESS':
+        return '#2563eb';
+      case 'DELAYED':
+        return '#dc2626';
+      default:
+        return '#64748b';
+    }
+  };
+
+  const filtered = contractors.filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase())
   );
 
   /* ================= RENDER ================= */
@@ -96,12 +90,9 @@ export default function Contractors() {
     <View style={styles.card}>
       {/* HEADER */}
       <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.company}>{item.company}</Text>
-        </View>
+        <Text style={styles.name}>{item.name}</Text>
 
-        <TouchableOpacity
+        <View
           style={[
             styles.statusBadge,
             {
@@ -111,60 +102,78 @@ export default function Contractors() {
                   : 'rgba(239,68,68,0.15)',
             },
           ]}
-          onPress={() => toggleStatus(item.id)}
         >
           <Text
-            style={[
-              styles.statusText,
-              { color: item.status === 'ACTIVE' ? '#10b981' : '#ef4444' },
-            ]}
+            style={{
+              color: item.status === 'ACTIVE' ? '#10b981' : '#ef4444',
+              fontWeight: '700',
+            }}
           >
             {item.status}
           </Text>
-        </TouchableOpacity>
+        </View>
       </View>
 
-      {/* PROJECT + USER */}
-      {item.project ? (
-        <View style={styles.projectBox}>
-          <View style={styles.projectRow}>
-            <Ionicons name="briefcase-outline" size={16} color="#2563eb" />
-            <Text style={styles.projectTitle}>
-              {item.project.projectName}
-            </Text>
-          </View>
+      {/* ASSIGNED USERS */}
+      {item.users && item.users.length > 0 ? (
+        item.users.map((u) => (
+          <View key={u.userId} style={styles.siteBox}>
+            <View style={styles.row}>
+              <Ionicons name="person-outline" size={16} color="#2563eb" />
+              <Text style={styles.siteText}>
+                User: {u.userName}
+              </Text>
+            </View>
 
-          <View style={styles.projectRow}>
-            <Ionicons name="person-outline" size={16} color="#475569" />
-            <Text style={styles.projectText}>
-              Client: {item.project.userName}
-            </Text>
-          </View>
+            <View style={styles.row}>
+              <Ionicons
+                name="stats-chart-outline"
+                size={16}
+                color={projectStatusColor(u.projectStatus)}
+              />
+              <Text
+                style={[
+                  styles.siteText,
+                  {
+                    color: projectStatusColor(u.projectStatus),
+                    fontWeight: '700',
+                  },
+                ]}
+              >
+                {u.projectStatus.replace('_', ' ')}
+              </Text>
+            </View>
 
-          <View style={styles.projectRow}>
-            <Ionicons name="mail-outline" size={16} color="#475569" />
-            <Text style={styles.projectText}>
-              {item.project.userEmail}
-            </Text>
+            <View style={styles.row}>
+              <Ionicons name="build-outline" size={16} color="#475569" />
+              <Text style={styles.siteText}>
+                Progress: {u.progress}%
+              </Text>
+            </View>
+
+            <View style={styles.row}>
+              <Ionicons name="calendar-outline" size={16} color="#475569" />
+              <Text style={styles.siteText}>
+                Deadline: {u.deadline}
+              </Text>
+            </View>
           </View>
-        </View>
+        ))
       ) : (
-        <Text style={styles.noProject}>No project assigned</Text>
+        <Text style={styles.noProject}>
+          No user / site assigned
+        </Text>
       )}
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.pageHeader}>
-        <Text style={styles.title}>Contractors</Text>
-        <Text style={styles.subtitle}>
-          Contractors with assigned projects & users
-        </Text>
-      </View>
+      <Text style={styles.title}>Contractors</Text>
+      <Text style={styles.subtitle}>
+        Assigned users & project progress
+      </Text>
 
-      {/* SEARCH */}
       <View style={styles.searchBox}>
         <Ionicons name="search-outline" size={18} color="#6b7280" />
         <TextInput
@@ -175,16 +184,18 @@ export default function Contractors() {
         />
       </View>
 
-      {/* LIST */}
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <Text style={styles.empty}>No contractors found</Text>
-        }
-      />
+      {loading ? (
+        <ActivityIndicator size="large" color="#2563eb" />
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          ListEmptyComponent={
+            <Text style={styles.empty}>No contractors found</Text>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -197,23 +208,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     padding: 16,
   },
-
-  pageHeader: {
-    marginBottom: 16,
-  },
-
   title: {
     fontSize: 26,
     fontWeight: '800',
     color: '#0f172a',
   },
-
   subtitle: {
     fontSize: 14,
     color: '#64748b',
-    marginTop: 4,
+    marginBottom: 12,
   },
-
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -225,89 +229,56 @@ const styles = StyleSheet.create({
     height: 48,
     marginBottom: 16,
   },
-
   searchInput: {
     flex: 1,
     marginLeft: 8,
-    fontSize: 15,
   },
-
   card: {
     backgroundColor: '#fff',
     padding: 16,
-    borderRadius: 18,
-    marginBottom: 14,
+    borderRadius: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
   },
-
   name: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0f172a',
   },
-
-  company: {
-    fontSize: 13,
-    color: '#64748b',
-    marginTop: 2,
-  },
-
   statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
-
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
-  projectBox: {
+  siteBox: {
     marginTop: 10,
     padding: 12,
     backgroundColor: '#eff6ff',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
   },
-
-  projectRow: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
     marginBottom: 6,
   },
-
-  projectTitle: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1d4ed8',
-  },
-
-  projectText: {
-    marginLeft: 6,
+  siteText: {
     fontSize: 13,
     color: '#334155',
   },
-
   noProject: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 13,
     color: '#94a3b8',
     fontStyle: 'italic',
   },
-
   empty: {
     textAlign: 'center',
-    color: '#64748b',
     marginTop: 40,
+    color: '#64748b',
   },
 });

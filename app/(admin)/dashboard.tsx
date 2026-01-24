@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,47 +6,96 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { API } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 64) / 2;
 
 interface StatCard {
   title: string;
-  value: string;
+  value: number;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   bg: string;
 }
 
 export default function Dashboard() {
-  const stats: StatCard[] = [
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  const [stats, setStats] = useState({
+    users: 0,
+    contractors: 0,
+    suppliers: 0,
+    activeSessions: 0,
+  });
+
+  /* 🔹 Fetch dashboard stats */
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
+
+  const fetchDashboardStats = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+
+      const res = await fetch(API('/api/admin/dashboard-stats'), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setStats(data);
+      }
+    } catch (err) {
+      console.log('Dashboard fetch error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* 🔹 Current date + time (12 hr) */
+  const currentDateTime = new Date().toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  const statCards: StatCard[] = [
     {
       title: 'Users',
-      value: '120',
+      value: stats.users,
       icon: 'people-outline',
       color: '#2563eb',
       bg: '#eff6ff',
     },
     {
       title: 'Contractors',
-      value: '18',
+      value: stats.contractors,
       icon: 'construct-outline',
       color: '#7c3aed',
       bg: '#f5f3ff',
     },
     {
       title: 'Suppliers',
-      value: '10',
+      value: stats.suppliers,
       icon: 'business-outline',
       color: '#059669',
       bg: '#ecfdf5',
     },
     {
       title: 'Active Sessions',
-      value: '45',
+      value: stats.activeSessions,
       icon: 'desktop-outline',
       color: '#d97706',
       bg: '#fffbeb',
@@ -67,54 +116,51 @@ export default function Dashboard() {
 
           <View style={styles.dateChip}>
             <Ionicons name="calendar-outline" size={18} color="#64748b" />
-            <Text style={styles.dateText}>Nov 15</Text>
+            <Text style={styles.dateText}>{currentDateTime}</Text>
           </View>
         </View>
 
-        {/* STATS */}
+        {/* OVERVIEW */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Overview</Text>
 
-          <View style={styles.grid}>
-            {stats.map((item, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.card,
-                  { width: CARD_WIDTH, backgroundColor: item.bg },
-                ]}
-              >
-                <View style={styles.cardTop}>
-                  <View
-                    style={[
-                      styles.iconBox,
-                      { backgroundColor: item.color + '20' },
-                    ]}
-                  >
+          {loading ? (
+            <ActivityIndicator size="large" color="#2563eb" />
+          ) : (
+            <View style={styles.grid}>
+              {statCards.map((item, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.card,
+                    { width: CARD_WIDTH, backgroundColor: item.bg },
+                  ]}
+                >
+                  <View style={styles.iconBox}>
                     <Ionicons
                       name={item.icon}
                       size={22}
                       color={item.color}
                     />
                   </View>
-                </View>
 
-                <Text style={styles.cardValue}>{item.value}</Text>
-                <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Text style={styles.cardValue}>{item.value}</Text>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
 
-                <View style={styles.trend}>
-                  <Ionicons
-                    name="trending-up"
-                    size={14}
-                    color={item.color}
-                  />
-                  <Text style={[styles.trendText, { color: item.color }]}>
-                    +12% this month
-                  </Text>
+                  <View style={styles.trend}>
+                    <Ionicons
+                      name="trending-up"
+                      size={14}
+                      color={item.color}
+                    />
+                    <Text style={[styles.trendText, { color: item.color }]}>
+                      Live
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* QUICK ACTIONS */}
@@ -125,6 +171,7 @@ export default function Dashboard() {
             <ActionButton
               icon="person-add-outline"
               label="Create User"
+              onPress={() => router.push('/(admin)/createUser')}
             />
             <ActionButton
               icon="document-text-outline"
@@ -133,6 +180,7 @@ export default function Dashboard() {
             <ActionButton
               icon="analytics-outline"
               label="Analytics"
+              onPress={() => router.push('/(admin)/(hidden)/analytics')}
             />
             <ActionButton
               icon="settings-outline"
@@ -150,12 +198,14 @@ export default function Dashboard() {
 function ActionButton({
   icon,
   label,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  onPress?: () => void;
 }) {
   return (
-    <TouchableOpacity style={styles.actionCard}>
+    <TouchableOpacity style={styles.actionCard} onPress={onPress}>
       <Ionicons name={icon} size={26} color="#2563eb" />
       <Text style={styles.actionText}>{label}</Text>
     </TouchableOpacity>
@@ -165,10 +215,7 @@ function ActionButton({
 /* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
 
   header: {
     padding: 24,
@@ -180,17 +227,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  welcome: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 4,
-  },
+  welcome: { fontSize: 22, fontWeight: '800', color: '#0f172a' },
+  subtitle: { fontSize: 14, color: '#64748b', marginTop: 4 },
 
   dateChip: {
     flexDirection: 'row',
@@ -202,17 +240,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
 
-  dateText: {
-    fontSize: 13,
-    color: '#64748b',
-    fontWeight: '600',
-  },
+  dateText: { fontSize: 13, color: '#64748b', fontWeight: '600' },
 
-  section: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-  },
-
+  section: { paddingHorizontal: 24, paddingTop: 24 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -234,17 +264,13 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
 
-  cardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-
   iconBox: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    alignItems: 'center',
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
+    alignItems: 'center',
   },
 
   cardValue: {
@@ -268,10 +294,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  trendText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  trendText: { fontSize: 12, fontWeight: '600' },
 
   actions: {
     flexDirection: 'row',

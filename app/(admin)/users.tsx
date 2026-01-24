@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,158 +10,150 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API } from '../../services/api';
+import { useRouter } from 'expo-router';
 
 /* ================= TYPES ================= */
 
 type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: 'USER' | 'CONTRACTOR' | 'SUPPLIER' | 'ADMIN';
-  status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
+  _id: string;
+  username: string;
+  role: 'admin' | 'contractor' | 'supplier' | 'user';
+  isApproved: boolean;
 };
 
-/* ================= DUMMY USERS ================= */
-
-const DUMMY_USERS: User[] = [
-  {
-    id: '1',
-    name: 'Rohit Patil',
-    email: 'rohit@gmail.com',
-    role: 'USER',
-    status: 'ACTIVE',
-  },
-  {
-    id: '2',
-    name: 'James Wilson',
-    email: 'james@contractor.com',
-    role: 'CONTRACTOR',
-    status: 'ACTIVE',
-  },
-  {
-    id: '3',
-    name: 'BuildMaster Pvt Ltd',
-    email: 'supplier@buildmaster.com',
-    role: 'SUPPLIER',
-    status: 'INACTIVE',
-  },
-];
+/* ================= SCREEN ================= */
 
 export default function Users() {
-  const [users, setUsers] = useState<User[]>(DUMMY_USERS);
+  const router = useRouter();
+  const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  /* ================= STATUS CHANGE ================= */
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  /* ================= API ================= */
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('token');
+
+      const res = await fetch(API('/api/admin/users'), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      setUsers(data);
+    } catch (err) {
+      console.log('Fetch users error', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateStatus = async (user: User, isApproved: boolean) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+
+      await fetch(API(`/api/admin/users/${user._id}/status`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isApproved }),
+      });
+
+      fetchUsers();
+    } catch (err) {
+      console.log('Status update error', err);
+    }
+  };
 
   const changeStatus = (user: User) => {
     Alert.alert(
       'Change Status',
-      `Change status for ${user.name}`,
+      `Update status for ${user.username}`,
       [
         {
           text: 'ACTIVE',
-          onPress: () => updateStatus(user.id, 'ACTIVE'),
+          onPress: () => updateStatus(user, true),
         },
         {
           text: 'INACTIVE',
-          onPress: () => updateStatus(user.id, 'INACTIVE'),
+          onPress: () => updateStatus(user, false),
         },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
       ]
-    );
-  };
-
-  const updateStatus = (id: string, status: User['status']) => {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === id ? { ...u, status } : u
-      )
     );
   };
 
   /* ================= FILTER ================= */
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
+  const filteredUsers = users.filter((u) =>
+    u.username.toLowerCase().includes(search.toLowerCase())
   );
 
   /* ================= HELPERS ================= */
 
-  const statusColor = (status: User['status']) => {
-    switch (status) {
-      case 'ACTIVE':
-        return '#16a34a';
-      case 'PENDING':
-        return '#f59e0b';
-      default:
-        return '#dc2626';
-    }
-  };
+  const statusColor = (approved: boolean) =>
+    approved ? '#16a34a' : '#dc2626';
 
-  const roleColor = (role: User['role']) => {
-    switch (role) {
-      case 'ADMIN':
-        return '#7c3aed';
-      case 'CONTRACTOR':
-        return '#2563eb';
-      case 'SUPPLIER':
-        return '#059669';
-      default:
-        return '#475569';
-    }
-  };
+  const roleColor = (role: User['role']) =>
+    role === 'admin'
+      ? '#7c3aed'
+      : role === 'contractor'
+      ? '#2563eb'
+      : role === 'supplier'
+      ? '#059669'
+      : '#475569';
 
   /* ================= RENDER ================= */
 
   const renderItem = ({ item }: { item: User }) => (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() =>
+        router.push(`/(admin)/(hidden)/user-details?id=${item._id}`)
+      }
+    >
       <View style={{ flex: 1 }}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.email}>{item.email}</Text>
+        <Text style={styles.name}>{item.username}</Text>
 
         <View style={styles.row}>
           <Text style={[styles.role, { color: roleColor(item.role) }]}>
-            {item.role}
+            {item.role.toUpperCase()}
           </Text>
 
           <TouchableOpacity
             style={[
               styles.statusBadge,
-              { backgroundColor: statusColor(item.status) },
+              { backgroundColor: statusColor(item.isApproved) },
             ]}
             onPress={() => changeStatus(item)}
           >
-            <Text style={styles.statusText}>{item.status}</Text>
+            <Text style={styles.statusText}>
+              {item.isApproved ? 'ACTIVE' : 'INACTIVE'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <TouchableOpacity onPress={() => changeStatus(item)}>
-        <Ionicons
-          name="ellipsis-vertical"
-          size={20}
-          color="#64748b"
-        />
-      </TouchableOpacity>
-    </View>
+      <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+    </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER */}
       <View style={styles.header}>
         <Text style={styles.title}>Users</Text>
-        <Text style={styles.subtitle}>
-          All system users (Admin / Contractor / Supplier / User)
-        </Text>
+        <Text style={styles.subtitle}>Manage all system users</Text>
       </View>
 
-      {/* SEARCH */}
       <View style={styles.searchBox}>
         <Ionicons name="search-outline" size={18} color="#64748b" />
         <TextInput
@@ -172,12 +164,12 @@ export default function Users() {
         />
       </View>
 
-      {/* LIST */}
       <FlatList
         data={filteredUsers}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
+        refreshing={loading}
+        onRefresh={fetchUsers}
         ListEmptyComponent={
           <Text style={styles.empty}>No users found</Text>
         }
@@ -185,6 +177,8 @@ export default function Users() {
     </SafeAreaView>
   );
 }
+
+
 
 /* ================= STYLES ================= */
 

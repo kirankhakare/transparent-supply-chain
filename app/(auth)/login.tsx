@@ -1,9 +1,15 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// const BASE_URL =  process.env.EXPO_PUBLIC_API_URL;
-import { BASE_URL } from '../../services/api';
+import { BASE_URL, API } from '../../services/api';
 
 export default function Login() {
   const router = useRouter();
@@ -12,69 +18,71 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  /* OPTIONAL: Wake Render server */
   const wakeServer = async () => {
-  try {
-    await fetch(`${BASE_URL}/health`);
-  } catch (e) {}
-};
+    try {
+      await fetch(`${BASE_URL}/health`);
+    } catch {}
+  };
 
- const handleLogin = async () => {
-  await wakeServer(); 
-  if (!username || !password) {
-    Alert.alert('Error', 'All fields are required');
-    return;
-  }
+  const handleLogin = async () => {
+    await wakeServer();
 
-  try {
-    setLoading(true);
-
-    const res = await fetch(`${BASE_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username, password }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      Alert.alert('Login Failed', data.message || 'Invalid credentials');
+    if (!username || !password) {
+      Alert.alert('Error', 'All fields are required');
       return;
     }
 
-    // ✅ SAVE TOKEN + ROLE
-    await AsyncStorage.setItem('token', data.token);
-    await AsyncStorage.setItem('role', data.role);
+    try {
+      setLoading(true);
 
-    // 🔀 ROLE BASED ROUTING
-    if (data.role === 'admin') {
-      router.replace('/(admin)/dashboard');
-    } else if (data.role === 'contractor') {
-      router.replace('/(contractor)/projects');
-    } else if (data.role === 'supplier') {
-      router.replace('/(supplier)/materials');
-    } else {
-      router.replace('/(user)/userDashboard');
+      const res = await fetch(API('/api/auth/login'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        Alert.alert('Login Failed', data.message || 'Invalid credentials');
+        return;
+      }
+
+      // ✅ SAVE TOKEN + ROLE (BACKEND FORMAT)
+      await AsyncStorage.setItem('token', data.token);
+      await AsyncStorage.setItem('role', data.user.role);
+
+      const role = data.user.role;
+
+      // 🔀 ROLE BASED ROUTING
+      if (role === 'admin') {
+        router.replace('/(admin)/dashboard');
+      } else if (role === 'contractor') {
+        router.replace('/(contractor)/projects');
+      } else if (role === 'supplier') {
+        router.replace('/(supplier)/materials');
+      } else {
+        router.replace('/(user)/userDashboard');
+      }
+    } catch (error) {
+      Alert.alert(
+        'Server Sleeping',
+        'Backend is waking up. Please try again in a few seconds.'
+      );
+    } finally {
+      setLoading(false);
     }
-
-  } catch (error) {
-    Alert.alert(
-      'Server Sleeping 😴',
-      'Render backend is waking up. Please try again in 10 seconds.'
-    );
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Login</Text>
 
       <TextInput
-        placeholder="User ID / Email"
+        placeholder="Username"
         style={styles.input}
         value={username}
         onChangeText={setUsername}
@@ -89,7 +97,11 @@ export default function Login() {
         onChangeText={setPassword}
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
+      <TouchableOpacity
+        style={[styles.button, loading && { opacity: 0.7 }]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
         <Text style={styles.btnText}>
           {loading ? 'Please wait...' : 'Login'}
         </Text>
@@ -97,6 +109,7 @@ export default function Login() {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
