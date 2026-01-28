@@ -20,7 +20,7 @@ import { API } from '@/services/api';
 type ProjectStatus = 'ACTIVE' | 'COMPLETED' | 'PENDING';
 
 type Project = {
-  _id: string;
+  _id: string;                // ✅ THIS IS siteId
   user: { username: string };
   completedWork: number;
   totalWork: number;
@@ -40,6 +40,8 @@ export default function Projects() {
   const [stageMap, setStageMap] = useState<Record<string, string>>({});
   const [remarksMap, setRemarksMap] = useState<Record<string, string>>({});
 
+  /* ================= LOAD PROJECTS ================= */
+
   const loadProjects = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -58,6 +60,8 @@ export default function Projects() {
   useEffect(() => {
     loadProjects();
   }, []);
+
+  /* ================= PROGRESS UPDATE ================= */
 
   const submitProgress = async (siteId: string) => {
     const percent = Number(progressMap[siteId]);
@@ -98,6 +102,8 @@ export default function Projects() {
     }
   };
 
+  /* ================= HELPERS ================= */
+
   const getStatus = (p: Project): ProjectStatus => {
     if (p.totalWork > 0 && p.completedWork >= p.totalWork) return 'COMPLETED';
     if (p.completedWork > 0) return 'ACTIVE';
@@ -110,10 +116,17 @@ export default function Projects() {
     return p.user.username.toLowerCase().includes(search.toLowerCase());
   });
 
+  /* ================= UI ================= */
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadProjects} />}>
+
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={loadProjects} />
+        }
+      >
         <Text style={styles.title}>My Projects</Text>
 
         <TextInput
@@ -134,16 +147,35 @@ export default function Projects() {
 
             return (
               <View key={p._id} style={styles.card}>
-                <Text style={styles.project}>{p.user.username}'s Project</Text>
-                <Text>{percent}% completed</Text>
+                <Text style={styles.project}>
+                  {p.user.username}'s Project
+                </Text>
 
+                <Text style={styles.percent}>{percent}% completed</Text>
+
+                {/* 🔥 CREATE ORDER BUTTON */}
                 <TouchableOpacity
-                  style={styles.updateBtn}
+                  style={[styles.btn, { backgroundColor: '#10b981' }]}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(contractor)/createOrder',
+                      params: { siteId: p._id }, // ✅ PASS siteId
+                    })
+                  }
+                >
+                  <Ionicons name="cart-outline" size={16} color="#fff" />
+                  <Text style={styles.btnText}>Create Order</Text>
+                </TouchableOpacity>
+
+                {/* UPDATE PROGRESS */}
+                <TouchableOpacity
+                  style={[styles.btn, { backgroundColor: '#2563eb' }]}
                   onPress={() =>
                     setActiveSiteId(activeSiteId === p._id ? null : p._id)
                   }
                 >
-                  <Text style={{ color: '#fff' }}>Update Progress</Text>
+                  <Ionicons name="analytics-outline" size={16} color="#fff" />
+                  <Text style={styles.btnText}>Update Progress</Text>
                 </TouchableOpacity>
 
                 {activeSiteId === p._id && (
@@ -157,6 +189,7 @@ export default function Projects() {
                       }
                       style={styles.input}
                     />
+
                     <TextInput
                       placeholder="Stage"
                       value={stageMap[p._id] || ''}
@@ -165,6 +198,7 @@ export default function Projects() {
                       }
                       style={styles.input}
                     />
+
                     <TextInput
                       placeholder="Remarks"
                       value={remarksMap[p._id] || ''}
@@ -175,10 +209,10 @@ export default function Projects() {
                     />
 
                     <TouchableOpacity
-                      style={styles.submitBtn}
+                      style={[styles.btn, { backgroundColor: '#0f172a' }]}
                       onPress={() => submitProgress(p._id)}
                     >
-                      <Text style={{ color: '#fff' }}>Submit</Text>
+                      <Text style={styles.btnText}>Submit Progress</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -191,21 +225,54 @@ export default function Projects() {
   );
 }
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   title: { fontSize: 26, fontWeight: '800', marginBottom: 12 },
-  search: { backgroundColor: '#fff', padding: 12, borderRadius: 10 },
-  card: { backgroundColor: '#fff', padding: 16, borderRadius: 16, marginTop: 12 },
-  project: { fontWeight: '800' },
-  updateBtn: {
-    backgroundColor: '#2563eb',
-    padding: 8,
-    borderRadius: 8,
+
+  search: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+
+  card: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 12,
+  },
+
+  project: { fontWeight: '800', fontSize: 16 },
+  percent: { marginVertical: 6, color: '#475569' },
+
+  btn: {
+    flexDirection: 'row',
+    gap: 8,
+    padding: 10,
+    borderRadius: 10,
     marginTop: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  form: { marginTop: 10 },
-  input: { backgroundColor: '#f1f5f9', padding: 10, borderRadius: 8, marginBottom: 6 },
-  submitBtn: { backgroundColor: '#10b981', padding: 10, borderRadius: 8 },
+
+  btnText: { color: '#fff', fontWeight: '700' },
+
+  form: {
+    marginTop: 10,
+    backgroundColor: '#f1f5f9',
+    padding: 10,
+    borderRadius: 10,
+  },
+
+  input: {
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+
   empty: { textAlign: 'center', marginTop: 40 },
 });
