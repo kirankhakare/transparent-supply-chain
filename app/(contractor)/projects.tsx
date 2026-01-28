@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// app/(contractor)/projects.tsx
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,364 +9,203 @@ import {
   StatusBar,
   RefreshControl,
   TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-
-/* ================= TYPES ================= */
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API } from '@/services/api';
 
 type ProjectStatus = 'ACTIVE' | 'COMPLETED' | 'PENDING';
 
 type Project = {
-  id: string;
-  name: string;
-  clientName: string;
-  clientEmail: string;
-  location: string;
-  status: ProjectStatus;
-  progress: number;
-  endDate: string;
-  budget: string;
-  completedTasks: number;
-  totalTasks: number;
+  _id: string;
+  user: { username: string };
+  completedWork: number;
+  totalWork: number;
 };
 
-/* ================= DUMMY ASSIGNED PROJECTS ================= */
-
-const PROJECTS: Project[] = [
-  {
-    id: 'p1',
-    name: 'Apartment Construction',
-    clientName: 'Rohit Patil',
-    clientEmail: 'rohit@gmail.com',
-    location: 'Pune, Maharashtra',
-    status: 'ACTIVE',
-    progress: 65,
-    endDate: '30 Jun 2024',
-    budget: '₹25,00,000',
-    completedTasks: 13,
-    totalTasks: 20,
-  },
-  {
-    id: 'p2',
-    name: 'Office Renovation',
-    clientName: 'Amit Sharma',
-    clientEmail: 'amit@gmail.com',
-    location: 'Mumbai',
-    status: 'ACTIVE',
-    progress: 40,
-    endDate: '15 Aug 2024',
-    budget: '₹18,00,000',
-    completedTasks: 8,
-    totalTasks: 20,
-  },
-  {
-    id: 'p3',
-    name: 'Villa Interior',
-    clientName: 'Neha Joshi',
-    clientEmail: 'neha@gmail.com',
-    location: 'Nagpur',
-    status: 'PENDING',
-    progress: 10,
-    endDate: '31 Oct 2024',
-    budget: '₹12,00,000',
-    completedTasks: 2,
-    totalTasks: 18,
-  },
-];
-
 export default function Projects() {
-  const [search, setSearch] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'ALL' | ProjectStatus>('ALL');
   const router = useRouter();
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setRefreshing(false);
-  };
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'ALL' | ProjectStatus>('ALL');
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const filteredProjects = PROJECTS.filter((p) => {
-    if (filter !== 'ALL' && p.status !== filter) return false;
-    if (!search) return true;
+  const [activeSiteId, setActiveSiteId] = useState<string | null>(null);
+  const [progressMap, setProgressMap] = useState<Record<string, string>>({});
+  const [stageMap, setStageMap] = useState<Record<string, string>>({});
+  const [remarksMap, setRemarksMap] = useState<Record<string, string>>({});
 
-    return (
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.clientName.toLowerCase().includes(search.toLowerCase()) ||
-      p.location.toLowerCase().includes(search.toLowerCase())
-    );
-  });
-
-  const statusColor = (status: ProjectStatus) => {
-    switch (status) {
-      case 'ACTIVE':
-        return '#10b981';
-      case 'COMPLETED':
-        return '#3b82f6';
-      case 'PENDING':
-        return '#f59e0b';
+  const loadProjects = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const res = await fetch(API('/api/contractor/sites'), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setProjects(data.sites || []);
+    } catch {
+      Alert.alert('Failed to load projects');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const goToOrders = (projectId: string) => {
-    router.push(`/(contractor)/orders?projectId=${projectId}`);
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const submitProgress = async (siteId: string) => {
+    const percent = Number(progressMap[siteId]);
+
+    if (isNaN(percent) || percent < 0 || percent > 100) {
+      Alert.alert('Progress must be between 0 and 100');
+      return;
+    }
+
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const res = await fetch(API('/api/contractor/progress'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          siteId,
+          percentageCompleted: percent,
+          stage: stageMap[siteId] || 'N/A',
+          remarks: remarksMap[siteId] || '',
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        Alert.alert(data.message || 'Progress update failed');
+        return;
+      }
+
+      Alert.alert('Progress updated successfully');
+      setActiveSiteId(null);
+      loadProjects();
+    } catch {
+      Alert.alert('Server error');
+    }
   };
 
-  const renderCard = (p: Project) => (
-    <TouchableOpacity
-      key={p.id}
-      style={styles.card}
-      activeOpacity={0.9}
-      onPress={() => goToOrders(p.id)}
-    >
-      {/* HEADER */}
-      <View style={styles.cardHeader}>
-        <View style={styles.projectTitleBox}>
-          <Ionicons name="briefcase-outline" size={22} color="#2563eb" />
-          <Text style={styles.projectName}>{p.name}</Text>
-        </View>
+  const getStatus = (p: Project): ProjectStatus => {
+    if (p.totalWork > 0 && p.completedWork >= p.totalWork) return 'COMPLETED';
+    if (p.completedWork > 0) return 'ACTIVE';
+    return 'PENDING';
+  };
 
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: statusColor(p.status) + '22' },
-          ]}
-        >
-          <Text style={[styles.statusText, { color: statusColor(p.status) }]}>
-            {p.status}
-          </Text>
-        </View>
-      </View>
-
-      {/* CLIENT */}
-      <View style={styles.infoRow}>
-        <Ionicons name="person-outline" size={16} color="#475569" />
-        <Text style={styles.infoText}>{p.clientName}</Text>
-      </View>
-
-      <View style={styles.infoRow}>
-        <Ionicons name="mail-outline" size={16} color="#475569" />
-        <Text style={styles.infoText}>{p.clientEmail}</Text>
-      </View>
-
-      <View style={styles.infoRow}>
-        <Ionicons name="location-outline" size={16} color="#475569" />
-        <Text style={styles.infoText}>{p.location}</Text>
-      </View>
-
-      {/* PROGRESS */}
-      <View style={styles.progressBox}>
-        <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>Progress</Text>
-          <Text style={styles.progressValue}>{p.progress}%</Text>
-        </View>
-
-        <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              { width: `${p.progress}%`, backgroundColor: statusColor(p.status) },
-            ]}
-          />
-        </View>
-
-        <Text style={styles.taskText}>
-          {p.completedTasks} / {p.totalTasks} tasks completed
-        </Text>
-      </View>
-
-      {/* FOOTER */}
-      <View style={styles.footer}>
-        <Text style={styles.budget}>{p.budget}</Text>
-
-        <TouchableOpacity style={styles.orderBtn}>
-          <Text style={styles.orderBtnText}>View Orders</Text>
-          <Ionicons name="arrow-forward-outline" size={16} color="#2563eb" />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
+  const filtered = projects.filter((p) => {
+    const status = getStatus(p);
+    if (filter !== 'ALL' && status !== filter) return false;
+    return p.user.username.toLowerCase().includes(search.toLowerCase());
+  });
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+      <StatusBar barStyle="dark-content" />
+      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadProjects} />}>
+        <Text style={styles.title}>My Projects</Text>
 
-      <ScrollView
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#2563eb']}
-          />
-        }
-      >
-        {/* HEADER */}
-        <View style={styles.header}>
-          <Text style={styles.title}>My Projects</Text>
-          <Text style={styles.subtitle}>
-            Assigned projects with client details
-          </Text>
-        </View>
+        <TextInput
+          placeholder="Search project..."
+          value={search}
+          onChangeText={setSearch}
+          style={styles.search}
+        />
 
-        {/* SEARCH */}
-        <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={18} color="#94a3b8" />
-          <TextInput
-            placeholder="Search project..."
-            value={search}
-            onChangeText={setSearch}
-            style={styles.searchInput}
-          />
-        </View>
+        {loading ? (
+          <Text style={styles.empty}>Loading...</Text>
+        ) : (
+          filtered.map((p) => {
+            const percent =
+              p.totalWork > 0
+                ? Math.round((p.completedWork / p.totalWork) * 100)
+                : 0;
 
-        {/* FILTER */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
-          {['ALL', 'ACTIVE', 'COMPLETED', 'PENDING'].map((f) => (
-            <TouchableOpacity
-              key={f}
-              style={[
-                styles.filterChip,
-                filter === f && styles.filterChipActive,
-              ]}
-              onPress={() => setFilter(f as any)}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  filter === f && styles.filterTextActive,
-                ]}
-              >
-                {f}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+            return (
+              <View key={p._id} style={styles.card}>
+                <Text style={styles.project}>{p.user.username}'s Project</Text>
+                <Text>{percent}% completed</Text>
 
-        {/* LIST */}
-        <View style={{ paddingBottom: 30 }}>
-          {filteredProjects.length > 0 ? (
-            filteredProjects.map(renderCard)
-          ) : (
-            <Text style={styles.empty}>No projects found</Text>
-          )}
-        </View>
+                <TouchableOpacity
+                  style={styles.updateBtn}
+                  onPress={() =>
+                    setActiveSiteId(activeSiteId === p._id ? null : p._id)
+                  }
+                >
+                  <Text style={{ color: '#fff' }}>Update Progress</Text>
+                </TouchableOpacity>
+
+                {activeSiteId === p._id && (
+                  <View style={styles.form}>
+                    <TextInput
+                      placeholder="Progress %"
+                      keyboardType="numeric"
+                      value={progressMap[p._id] || ''}
+                      onChangeText={(v) =>
+                        setProgressMap({ ...progressMap, [p._id]: v })
+                      }
+                      style={styles.input}
+                    />
+                    <TextInput
+                      placeholder="Stage"
+                      value={stageMap[p._id] || ''}
+                      onChangeText={(v) =>
+                        setStageMap({ ...stageMap, [p._id]: v })
+                      }
+                      style={styles.input}
+                    />
+                    <TextInput
+                      placeholder="Remarks"
+                      value={remarksMap[p._id] || ''}
+                      onChangeText={(v) =>
+                        setRemarksMap({ ...remarksMap, [p._id]: v })
+                      }
+                      style={styles.input}
+                    />
+
+                    <TouchableOpacity
+                      style={styles.submitBtn}
+                      onPress={() => submitProgress(p._id)}
+                    >
+                      <Text style={{ color: '#fff' }}>Submit</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            );
+          })
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-/* ================= STYLES ================= */
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-
-  header: { padding: 20 },
-  title: { fontSize: 28, fontWeight: '800', color: '#0f172a' },
-  subtitle: { color: '#64748b', marginTop: 4 },
-
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    height: 46,
-  },
-  searchInput: { flex: 1, marginLeft: 8, fontSize: 15 },
-
-  filterRow: { paddingHorizontal: 20, marginBottom: 16 },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginRight: 8,
-  },
-  filterChipActive: {
+  container: { flex: 1, padding: 16 },
+  title: { fontSize: 26, fontWeight: '800', marginBottom: 12 },
+  search: { backgroundColor: '#fff', padding: 12, borderRadius: 10 },
+  card: { backgroundColor: '#fff', padding: 16, borderRadius: 16, marginTop: 12 },
+  project: { fontWeight: '800' },
+  updateBtn: {
     backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
-  },
-  filterText: { color: '#64748b', fontWeight: '600' },
-  filterTextActive: { color: '#fff' },
-
-  card: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  projectTitleBox: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  projectName: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
-
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  statusText: { fontSize: 12, fontWeight: '700' },
-
-  infoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  infoText: { marginLeft: 8, fontSize: 13, color: '#475569' },
-
-  progressBox: { marginTop: 14 },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  progressLabel: { fontSize: 13, color: '#475569' },
-  progressValue: { fontWeight: '700' },
-
-  progressBar: {
-    height: 8,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: { height: '100%' },
-  taskText: { fontSize: 12, color: '#64748b', marginTop: 4 },
-
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 8,
     alignItems: 'center',
-    marginTop: 16,
   },
-  budget: { fontSize: 17, fontWeight: '800', color: '#0f172a' },
-
-  orderBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: 'rgba(37,99,235,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(37,99,235,0.25)',
-  },
-  orderBtnText: { color: '#2563eb', fontWeight: '700' },
-
-  empty: {
-    textAlign: 'center',
-    color: '#94a3b8',
-    marginTop: 40,
-  },
+  form: { marginTop: 10 },
+  input: { backgroundColor: '#f1f5f9', padding: 10, borderRadius: 8, marginBottom: 6 },
+  submitBtn: { backgroundColor: '#10b981', padding: 10, borderRadius: 8 },
+  empty: { textAlign: 'center', marginTop: 40 },
 });

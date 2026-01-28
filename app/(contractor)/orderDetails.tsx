@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,121 +7,169 @@ import {
   TouchableOpacity,
   StatusBar,
   FlatList,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API } from '@/services/api';
 
 /* ================= TYPES ================= */
 
-type Status = 'pending' | 'approved' | 'shipped' | 'delivered' | 'cancelled';
-type PaymentStatus = 'pending' | 'partial' | 'paid';
+type Status = 'PENDING' | 'ACCEPTED' | 'DISPATCHED' | 'DELIVERED';
 
 type OrderItem = {
-  id: string;
   name: string;
   quantity: number;
   unit: string;
-  unitPrice: number;
-  total: number;
-  specifications?: string;
 };
 
 type OrderDetail = {
-  orderNumber: string;
-  projectName: string;
-  supplier: string;
-  phone: string;
-  email: string;
+  _id: string;
+  site?: {
+    projectName?: string;
+    address?: string;
+  };
+  supplier?: {
+    username: string;
+    phone?: string;
+    email?: string;
+  };
   status: Status;
-  paymentStatus: PaymentStatus;
-  orderDate: string;
-  deliveryDate: string;
-  address: string;
-  items: OrderItem[];
-  subTotal: number;
-  tax: number;
-  shipping: number;
-  total: number;
-  notes?: string;
-};
-
-/* ================= DUMMY DATA ================= */
-
-const ORDER: OrderDetail = {
-  orderNumber: 'ORD-2024-001',
-  projectName: 'Modern Residence Construction',
-  supplier: 'BuildMart Supplies',
-  phone: '+1 555 123 456',
-  email: 'support@buildmart.com',
-  status: 'delivered',
-  paymentStatus: 'paid',
-  orderDate: '20 Jan 2024',
-  deliveryDate: '24 Jan 2024',
-  address: '123 Main Street, New York',
-  items: [
-    {
-      id: '1',
-      name: 'Cement (50kg)',
-      quantity: 100,
-      unit: 'bags',
-      unitPrice: 8.5,
-      total: 850,
-    },
-    {
-      id: '2',
-      name: 'Steel Bars (12mm)',
-      quantity: 50,
-      unit: 'tons',
-      unitPrice: 150,
-      total: 7500,
-      specifications: 'TMT 500D',
-    },
-  ],
-  subTotal: 8350,
-  tax: 420,
-  shipping: 380,
-  total: 9150,
-  notes: 'Deliver before 2 PM. Inform site supervisor.',
+  createdAt: string;
+  materials: OrderItem[];
 };
 
 /* ================= HELPERS ================= */
 
 const statusColor = (s: Status) =>
-  s === 'delivered'
+  s === 'DELIVERED'
     ? '#10b981'
-    : s === 'shipped'
+    : s === 'DISPATCHED'
     ? '#8b5cf6'
-    : s === 'approved'
+    : s === 'ACCEPTED'
     ? '#3b82f6'
-    : s === 'pending'
-    ? '#f59e0b'
-    : '#ef4444';
-
-const payColor = (s: PaymentStatus) =>
-  s === 'paid' ? '#10b981' : s === 'partial' ? '#f59e0b' : '#ef4444';
+    : '#f59e0b';
 
 /* ================= COMPONENT ================= */
 
 export default function OrderDetails() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+
+  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  /* ================= LOAD ORDER ================= */
+
+  const loadOrder = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('token');
+
+      const res = await fetch(API(`/api/contractor/orders/${id}`), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error('Order not found');
+
+      const data = await res.json();
+      setOrder(data);
+    } catch (err) {
+      console.log('Failed to load order', err);
+      setOrder(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (id) loadOrder();
+  }, [id]);
+
+  /* ================= UPDATE STATUS ================= */
+
+  const updateStatus = async (status: Status) => {
+    try {
+      setUpdating(true);
+      const token = await AsyncStorage.getItem('token');
+
+      const res = await fetch(
+        API(`/api/contractor/orders/${id}/status`),
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status }),
+        }
+      );
+
+      if (!res.ok) throw new Error('Failed');
+
+      Alert.alert('Success', `Order marked as ${status}`);
+      loadOrder();
+    } catch {
+      Alert.alert('Error', 'Status update failed');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  /* ================= UI STATES ================= */
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.loading}>Loading order details...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!order) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.loading}>Order not found</Text>
+      </SafeAreaView>
+    );
+  }
+
+  /* ================= RENDER ================= */
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView>
         {/* HEADER */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={22} color="#0f172a" />
           </TouchableOpacity>
 
           <View>
-            <Text style={styles.orderNo}>{ORDER.orderNumber}</Text>
-            <View style={[styles.statusPill, { backgroundColor: statusColor(ORDER.status) + '22' }]}>
-              <Text style={[styles.statusText, { color: statusColor(ORDER.status) }]}>
-                {ORDER.status.toUpperCase()}
+            <Text style={styles.orderNo}>
+              #{order._id.slice(-6).toUpperCase()}
+            </Text>
+            <View
+              style={[
+                styles.statusPill,
+                { backgroundColor: statusColor(order.status) + '22' },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  { color: statusColor(order.status) },
+                ]}
+              >
+                {order.status}
               </Text>
             </View>
           </View>
@@ -129,82 +177,75 @@ export default function OrderDetails() {
 
         {/* INFO */}
         <View style={styles.card}>
-          <Info icon="briefcase" label="Project" value={ORDER.projectName} />
-          <Info icon="location" label="Delivery Address" value={ORDER.address} />
-          <Info icon="calendar" label="Order Date" value={ORDER.orderDate} />
-          <Info icon="checkmark-circle" label="Delivered On" value={ORDER.deliveryDate} />
+          <Info
+            icon="briefcase"
+            label="Project"
+            value={order.site?.projectName || 'Project'}
+          />
+          <Info
+            icon="calendar"
+            label="Order Date"
+            value={new Date(order.createdAt).toDateString()}
+          />
         </View>
 
         {/* SUPPLIER */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Supplier</Text>
-          <Info icon="business" label="Name" value={ORDER.supplier} />
-          <Info icon="call" label="Phone" value={ORDER.phone} />
-          <Info icon="mail" label="Email" value={ORDER.email} />
+          <Info icon="business" label="Name" value={order.supplier?.username} />
+          {order.supplier?.phone && (
+            <Info icon="call" label="Phone" value={order.supplier.phone} />
+          )}
+          {order.supplier?.email && (
+            <Info icon="mail" label="Email" value={order.supplier.email} />
+          )}
         </View>
 
         {/* ITEMS */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Order Items</Text>
           <FlatList
-            data={ORDER.items}
-            keyExtractor={(i) => i.id}
+            data={order.materials}
+            keyExtractor={(_, i) => i.toString()}
             scrollEnabled={false}
             renderItem={({ item }) => (
               <View style={styles.itemRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.itemName}>{item.name}</Text>
                   <Text style={styles.itemMeta}>
-                    {item.quantity} {item.unit} × ${item.unitPrice}
+                    {item.quantity} {item.unit}
                   </Text>
-                  {item.specifications && (
-                    <Text style={styles.itemSpec}>{item.specifications}</Text>
-                  )}
                 </View>
-                <Text style={styles.itemAmount}>${item.total}</Text>
               </View>
             )}
           />
         </View>
 
-        {/* PAYMENT */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Payment Summary</Text>
-
-          <Row label="Subtotal" value={`$${ORDER.subTotal}`} />
-          <Row label="Tax" value={`$${ORDER.tax}`} />
-          <Row label="Shipping" value={`$${ORDER.shipping}`} />
-
-          <View style={styles.divider} />
-
-          <Row label="Total" value={`$${ORDER.total}`} bold />
-
-          <View style={[styles.payStatus, { backgroundColor: payColor(ORDER.paymentStatus) + '22' }]}>
-            <Text style={[styles.payText, { color: payColor(ORDER.paymentStatus) }]}>
-              PAYMENT {ORDER.paymentStatus.toUpperCase()}
-            </Text>
-          </View>
-        </View>
-
-        {/* NOTES */}
-        {ORDER.notes && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Notes</Text>
-            <Text style={styles.notes}>{ORDER.notes}</Text>
-          </View>
-        )}
-
-        {/* ACTIONS */}
+        {/* STATUS ACTIONS */}
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.secondaryBtn}>
-            <Ionicons name="download-outline" size={18} color="#2563eb" />
-            <Text style={styles.secondaryText}>Invoice</Text>
-          </TouchableOpacity>
+          {order.status === 'PENDING' && (
+            <ActionBtn
+              text="Accept Order"
+              onPress={() => updateStatus('ACCEPTED')}
+              loading={updating}
+            />
+          )}
 
-          <TouchableOpacity style={styles.primaryBtn}>
-            <Ionicons name="chatbubble-outline" size={18} color="#fff" />
-            <Text style={styles.primaryText}>Contact Supplier</Text>
-          </TouchableOpacity>
+          {order.status === 'ACCEPTED' && (
+            <ActionBtn
+              text="Mark as Dispatched"
+              onPress={() => updateStatus('DISPATCHED')}
+              loading={updating}
+            />
+          )}
+
+          {order.status === 'DISPATCHED' && (
+            <ActionBtn
+              text="Mark as Delivered"
+              onPress={() => updateStatus('DELIVERED')}
+              loading={updating}
+            />
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -223,17 +264,29 @@ const Info = ({ icon, label, value }: any) => (
   </View>
 );
 
-const Row = ({ label, value, bold }: any) => (
-  <View style={styles.row}>
-    <Text style={[styles.rowLabel, bold && styles.bold]}>{label}</Text>
-    <Text style={[styles.rowValue, bold && styles.bold]}>{value}</Text>
-  </View>
+const ActionBtn = ({ text, onPress, loading }: any) => (
+  <TouchableOpacity
+    style={styles.primaryBtn}
+    onPress={onPress}
+    disabled={loading}
+  >
+    <Text style={styles.primaryText}>
+      {loading ? 'Updating...' : text}
+    </Text>
+  </TouchableOpacity>
 );
 
 /* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
+
+  loading: {
+    marginTop: 100,
+    textAlign: 'center',
+    color: '#64748b',
+    fontSize: 16,
+  },
 
   header: { flexDirection: 'row', alignItems: 'center', padding: 20 },
   backBtn: {
@@ -245,8 +298,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 14,
   },
-  orderNo: { fontSize: 22, fontWeight: '800', color: '#0f172a' },
-  statusPill: { marginTop: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  orderNo: { fontSize: 22, fontWeight: '800' },
+
+  statusPill: {
+    marginTop: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
   statusText: { fontSize: 12, fontWeight: '800' },
 
   card: {
@@ -258,55 +317,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
+
   cardTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
 
-  infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  infoRow: { flexDirection: 'row', marginBottom: 12 },
   infoLabel: { fontSize: 12, color: '#64748b' },
-  infoValue: { fontSize: 15, fontWeight: '600', color: '#0f172a' },
+  infoValue: { fontSize: 15, fontWeight: '600' },
 
   itemRow: {
-    flexDirection: 'row',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
+
   itemName: { fontSize: 15, fontWeight: '600' },
   itemMeta: { fontSize: 13, color: '#64748b' },
-  itemSpec: { fontSize: 12, color: '#475569' },
-  itemAmount: { fontSize: 16, fontWeight: '800' },
 
-  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  rowLabel: { color: '#64748b' },
-  rowValue: { fontWeight: '600' },
-  bold: { fontWeight: '800', fontSize: 16 },
+  actions: { padding: 20 },
 
-  divider: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 12 },
-
-  payStatus: { padding: 12, borderRadius: 14, marginTop: 10 },
-  payText: { textAlign: 'center', fontWeight: '700' },
-
-  notes: { color: '#475569', lineHeight: 22 },
-
-  actions: { flexDirection: 'row', padding: 20, gap: 12 },
-  secondaryBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#2563eb',
-    paddingVertical: 14,
-    borderRadius: 14,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  secondaryText: { color: '#2563eb', fontWeight: '700' },
   primaryBtn: {
-    flex: 1,
     backgroundColor: '#2563eb',
     paddingVertical: 14,
     borderRadius: 14,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
+    alignItems: 'center',
   },
   primaryText: { color: '#fff', fontWeight: '700' },
 });
