@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,104 +13,47 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API } from '@/services/api';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Picker } from '@react-native-picker/picker';
-
-/* ================= IMAGEKIT CONFIG ================= */
-const IMAGEKIT_UPLOAD_URL = 'https://upload.imagekit.io/api/v1/files/upload';
-const IMAGEKIT_PUBLIC_KEY = 'YOUR_IMAGEKIT_PUBLIC_KEY';
-
-type Site = {
-  _id: string;
-  projectName: string;
-};
 
 export default function DeliverOrder() {
-  const { orderId } = useLocalSearchParams<{ orderId: string }>();
+  const { orderId } = useLocalSearchParams<{ orderId?: string }>();
   const router = useRouter();
 
-  const [sites, setSites] = useState<Site[]>([]);
-  const [selectedSite, setSelectedSite] = useState<string>('');
-
+  const [siteName, setSiteName] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
 
-  /* ================= LOAD SITES ================= */
+  /* ================= CAMERA ================= */
 
-  const loadSites = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-     const res = await fetch(API('/api/supplier/sites'), {
-  headers: { Authorization: `Bearer ${token}` },
-});
+   const takePhoto = async () => {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    Alert.alert('Camera permission required');
+    return;
+  }
 
-      const data = await res.json();
-      if (res.ok) setSites(data);
-    } catch {
-      Alert.alert('Failed to load sites');
-    }
-  };
+  const res = await ImagePicker.launchCameraAsync({
+    mediaTypes: ['images'], // 🔥 FINAL FIX
+    quality: 0.7,
+  });
 
-  useEffect(() => {
-    loadSites();
-  }, []);
+  if (!res.canceled) {
+    setImageUri(res.assets[0].uri);
+  }
+};
 
-  /* ================= CAMERA IMAGE ================= */
 
-  const takePhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Camera permission required');
-      return;
-    }
-
-    const res = await ImagePicker.launchCameraAsync({
-     mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-    });
-
-    if (!res.canceled) {
-      setImageUri(res.assets[0].uri);
-    }
-  };
-
-  /* ================= UPLOAD TO IMAGEKIT ================= */
-
-  const uploadToImageKit = async (): Promise<string | null> => {
-    if (!imageUri) return null;
-
-    const formData = new FormData();
-    const fileName = `delivery_${Date.now()}.jpg`;
-
-    formData.append('file', {
-      uri: imageUri,
-      name: fileName,
-      type: 'image/jpeg',
-    } as any);
-
-    formData.append('fileName', fileName);
-    formData.append('publicKey', IMAGEKIT_PUBLIC_KEY);
-
-    try {
-      const res = await fetch(IMAGEKIT_UPLOAD_URL, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok) return null;
-
-      return data.url;
-    } catch {
-      return null;
-    }
-  };
 
   /* ================= SUBMIT DELIVERY ================= */
 
   const submitDelivery = async () => {
-    if (!selectedSite) {
-      Alert.alert('Please select site');
+    if (!orderId) {
+      Alert.alert('Invalid order');
+      return;
+    }
+
+    if (!siteName.trim()) {
+      Alert.alert('Please enter site name');
       return;
     }
 
@@ -122,31 +65,31 @@ export default function DeliverOrder() {
     setUploading(true);
 
     try {
-      const imageUrl = await uploadToImageKit();
-      if (!imageUrl) {
-        Alert.alert('Image upload failed');
-        return;
-      }
-
       const token = await AsyncStorage.getItem('token');
+
+      const formData = new FormData();
+      formData.append('image', {
+        uri: imageUri,
+        name: `delivery_${Date.now()}.jpg`,
+        type: 'image/jpeg',
+      } as any);
+
+      formData.append('siteName', siteName.trim()); // ✅ SAFE
+      formData.append('message', message);
 
       const res = await fetch(
         API(`/api/supplier/order/${orderId}/deliver`),
         {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            siteId: selectedSite,
-            imageUrl,
-            message,
-          }),
+          body: formData,
         }
       );
 
       const data = await res.json();
+
       if (!res.ok) {
         Alert.alert(data.message || 'Delivery failed');
         return;
@@ -154,7 +97,7 @@ export default function DeliverOrder() {
 
       Alert.alert('Order delivered successfully');
       router.back();
-    } catch {
+    } catch (err) {
       Alert.alert('Server error');
     } finally {
       setUploading(false);
@@ -167,24 +110,13 @@ export default function DeliverOrder() {
     <View style={styles.container}>
       <Text style={styles.title}>Deliver Order</Text>
 
-      {/* SITE SELECT */}
-      <View style={styles.pickerBox}>
-        <Picker
-          selectedValue={selectedSite}
-          onValueChange={(v) => setSelectedSite(v)}
-        >
-          <Picker.Item label="Select Site" value="" />
-          {sites.map((s) => (
-            <Picker.Item
-              key={s._id}
-              label={s.projectName}
-              value={s._id}
-            />
-          ))}
-        </Picker>
-      </View>
+      <TextInput
+        placeholder="Enter Site Name"
+        value={siteName}
+        onChangeText={setSiteName}
+        style={styles.input}
+      />
 
-      {/* CAMERA IMAGE */}
       <TouchableOpacity style={styles.imgBox} onPress={takePhoto}>
         {imageUri ? (
           <Image source={{ uri: imageUri }} style={styles.img} />
@@ -223,9 +155,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   title: { fontSize: 22, fontWeight: '800', marginBottom: 12 },
 
-  pickerBox: {
+  input: {
     backgroundColor: '#f1f5f9',
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 10,
     marginBottom: 12,
   },
 
@@ -241,13 +174,6 @@ const styles = StyleSheet.create({
   },
 
   img: { width: '100%', height: '100%', borderRadius: 12 },
-
-  input: {
-    backgroundColor: '#f1f5f9',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 14,
-  },
 
   btn: {
     backgroundColor: '#10b981',

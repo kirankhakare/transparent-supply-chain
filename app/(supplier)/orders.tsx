@@ -97,16 +97,16 @@ export default function SupplierOrders() {
               const token = await AsyncStorage.getItem('token');
 
               const res = await fetch(
-                API(`/api/supplier/order/${orderId}/status`),
-                {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({ status }),
-                }
-              );
+  API(`/api/supplier/order/${orderId}/status`),
+  {
+    method: 'PUT', // ✅ FIX
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ status }),
+  }
+);
 
               const data = await res.json();
 
