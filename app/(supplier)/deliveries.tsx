@@ -3,245 +3,258 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
-  RefreshControl,
+  Image,
+  TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
 import { API } from '@/services/api';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Picker } from '@react-native-picker/picker';
 
-/* ================= TYPES ================= */
+/* ================= IMAGEKIT CONFIG ================= */
+const IMAGEKIT_UPLOAD_URL = 'https://upload.imagekit.io/api/v1/files/upload';
+const IMAGEKIT_PUBLIC_KEY = 'YOUR_IMAGEKIT_PUBLIC_KEY';
 
-type OrderStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'DELIVERED';
-
-type Order = {
+type Site = {
   _id: string;
-  site?: {
-    projectName?: string;
-  };
-  contractor?: {
-    username: string;
-  };
-  materials: {
-    name: string;
-    quantity: number;
-    unit: string;
-  }[];
-  status: OrderStatus;
-  createdAt: string;
+  projectName: string;
 };
 
-/* ================= COMPONENT ================= */
+export default function DeliverOrder() {
+  const { orderId } = useLocalSearchParams<{ orderId: string }>();
+  const router = useRouter();
 
-export default function Deliveries() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [selectedSite, setSelectedSite] = useState<string>('');
 
-  /* ================= LOAD ORDERS ================= */
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
+  const [uploading, setUploading] = useState(false);
 
-  const loadOrders = async () => {
+  /* ================= LOAD SITES ================= */
+
+  const loadSites = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-
-      const res = await fetch(API('/api/supplier/orders'), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error();
+     const res = await fetch(API('/api/supplier/sites'), {
+  headers: { Authorization: `Bearer ${token}` },
+});
 
       const data = await res.json();
-      setOrders(Array.isArray(data) ? data : []);
+      if (res.ok) setSites(data);
     } catch {
-      setOrders([]);
-    } finally {
-      setLoading(false);
+      Alert.alert('Failed to load sites');
     }
   };
 
   useEffect(() => {
-    loadOrders();
+    loadSites();
   }, []);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadOrders();
-    setRefreshing(false);
-  };
+  /* ================= CAMERA IMAGE ================= */
 
-  /* ================= UPDATE STATUS ================= */
+  const takePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Camera permission required');
+      return;
+    }
 
-  const updateStatus = async (id: string, status: OrderStatus) => {
-    try {
-      const token = await AsyncStorage.getItem('token');
+    const res = await ImagePicker.launchCameraAsync({
+     mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
 
-      const res = await fetch(API(`/api/supplier/order/${id}`), {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status }),
-      });
-
-      if (!res.ok) throw new Error();
-
-      loadOrders();
-    } catch {
-      Alert.alert('Failed to update order');
+    if (!res.canceled) {
+      setImageUri(res.assets[0].uri);
     }
   };
 
-  /* ================= UI HELPERS ================= */
+  /* ================= UPLOAD TO IMAGEKIT ================= */
 
-  const colorByStatus = (s: OrderStatus) =>
-    s === 'PENDING'
-      ? '#f59e0b'
-      : s === 'ACCEPTED'
-      ? '#2563eb'
-      : s === 'DELIVERED'
-      ? '#10b981'
-      : '#ef4444';
+  const uploadToImageKit = async (): Promise<string | null> => {
+    if (!imageUri) return null;
 
-  /* ================= RENDER ITEM ================= */
+    const formData = new FormData();
+    const fileName = `delivery_${Date.now()}.jpg`;
 
-  const renderItem = ({ item }: { item: Order }) => (
-    <View style={styles.card}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <Text style={styles.orderNo}>
-          #{item._id.slice(-6).toUpperCase()}
-        </Text>
+    formData.append('file', {
+      uri: imageUri,
+      name: fileName,
+      type: 'image/jpeg',
+    } as any);
 
-        <Text
-          style={[
-            styles.status,
-            { color: colorByStatus(item.status) },
-          ]}
-        >
-          {item.status}
-        </Text>
-      </View>
+    formData.append('fileName', fileName);
+    formData.append('publicKey', IMAGEKIT_PUBLIC_KEY);
 
-      {/* PROJECT */}
-      <Text style={styles.project}>
-        {item.site?.projectName || 'Project'}
-      </Text>
+    try {
+      const res = await fetch(IMAGEKIT_UPLOAD_URL, {
+        method: 'POST',
+        body: formData,
+      });
 
-      {/* CONTRACTOR */}
-      <Text style={styles.meta}>
-        Contractor: {item.contractor?.username || '-'}
-      </Text>
+      const data = await res.json();
+      if (!res.ok) return null;
 
-      {/* MATERIALS */}
-      <View style={styles.materials}>
-        {item.materials.map((m, i) => (
-          <Text key={i} style={styles.material}>
-            • {m.name} ({m.quantity} {m.unit})
-          </Text>
-        ))}
-      </View>
+      return data.url;
+    } catch {
+      return null;
+    }
+  };
 
-      {/* ACTIONS */}
-      {item.status === 'PENDING' && (
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: '#10b981' }]}
-            onPress={() => updateStatus(item._id, 'ACCEPTED')}
-          >
-            <Text style={styles.btnText}>Accept</Text>
-          </TouchableOpacity>
+  /* ================= SUBMIT DELIVERY ================= */
 
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: '#ef4444' }]}
-            onPress={() => updateStatus(item._id, 'REJECTED')}
-          >
-            <Text style={styles.btnText}>Reject</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+  const submitDelivery = async () => {
+    if (!selectedSite) {
+      Alert.alert('Please select site');
+      return;
+    }
 
-      {item.status === 'ACCEPTED' && (
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: '#2563eb', marginTop: 10 }]}
-          onPress={() => updateStatus(item._id, 'DELIVERED')}
-        >
-          <Text style={styles.btnText}>Mark Delivered</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+    if (!imageUri) {
+      Alert.alert('Please capture delivery image');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const imageUrl = await uploadToImageKit();
+      if (!imageUrl) {
+        Alert.alert('Image upload failed');
+        return;
+      }
+
+      const token = await AsyncStorage.getItem('token');
+
+      const res = await fetch(
+        API(`/api/supplier/order/${orderId}/deliver`),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            siteId: selectedSite,
+            imageUrl,
+            message,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        Alert.alert(data.message || 'Delivery failed');
+        return;
+      }
+
+      Alert.alert('Order delivered successfully');
+      router.back();
+    } catch {
+      Alert.alert('Server error');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   /* ================= UI ================= */
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Deliveries</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Deliver Order</Text>
 
-      <FlatList
-        data={orders}
-        keyExtractor={(i) => i._id}
-        renderItem={renderItem}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <Text style={styles.empty}>
-            {loading ? 'Loading...' : 'No deliveries found'}
+      {/* SITE SELECT */}
+      <View style={styles.pickerBox}>
+        <Picker
+          selectedValue={selectedSite}
+          onValueChange={(v) => setSelectedSite(v)}
+        >
+          <Picker.Item label="Select Site" value="" />
+          {sites.map((s) => (
+            <Picker.Item
+              key={s._id}
+              label={s.projectName}
+              value={s._id}
+            />
+          ))}
+        </Picker>
+      </View>
+
+      {/* CAMERA IMAGE */}
+      <TouchableOpacity style={styles.imgBox} onPress={takePhoto}>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.img} />
+        ) : (
+          <Text style={{ color: '#64748b' }}>
+            Capture Delivery Image
           </Text>
-        }
+        )}
+      </TouchableOpacity>
+
+      <TextInput
+        placeholder="Message (optional)"
+        value={message}
+        onChangeText={setMessage}
+        style={styles.input}
       />
-    </SafeAreaView>
+
+      <TouchableOpacity
+        style={styles.btn}
+        onPress={submitDelivery}
+        disabled={uploading}
+      >
+        {uploading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.btnText}>Mark Delivered</Text>
+        )}
+      </TouchableOpacity>
+    </View>
   );
 }
 
 /* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
-  title: { fontSize: 26, fontWeight: '800', marginBottom: 12 },
+  container: { flex: 1, padding: 20 },
+  title: { fontSize: 22, fontWeight: '800', marginBottom: 12 },
 
-  card: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 16,
+  pickerBox: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
     marginBottom: 12,
   },
 
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  imgBox: {
+    height: 180,
+    borderWidth: 1,
+    borderColor: '#94a3b8',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    backgroundColor: '#f8fafc',
   },
 
-  orderNo: { fontWeight: '800', fontSize: 16 },
-  status: { fontWeight: '800' },
+  img: { width: '100%', height: '100%', borderRadius: 12 },
 
-  project: { marginTop: 6, color: '#64748b' },
-  meta: { marginTop: 4, fontSize: 13 },
-
-  materials: { marginTop: 8 },
-  material: { fontSize: 13, color: '#475569' },
-
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
+  input: {
+    backgroundColor: '#f1f5f9',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 14,
   },
 
   btn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    backgroundColor: '#10b981',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
   },
 
   btnText: { color: '#fff', fontWeight: '800' },
-
-  empty: {
-    textAlign: 'center',
-    marginTop: 40,
-    color: '#94a3b8',
-  },
 });
