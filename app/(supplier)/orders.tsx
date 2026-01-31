@@ -2,317 +2,262 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TouchableOpacity,
-  RefreshControl,
+  Image,
   Alert,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API } from '@/services/api';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 
 /* ================= TYPES ================= */
 
-type OrderStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'DELIVERED';
+type Material = {
+  name: string;
+  quantity: number;
+  unit: string;
+};
 
 type Order = {
   _id: string;
-  site?: { projectName?: string };
-  contractor?: { username?: string };
-  materials: {
-    name: string;
-    quantity: number;
-    unit: string;
-  }[];
-  status: OrderStatus;
-  createdAt: string;
+  orderNumber: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DISPATCHED' | 'DELIVERED';
+  site: {
+    projectName: string;
+  };
+  contractor: {
+    username: string;
+  };
+  materials: Material[];
+  delivery?: {
+    imageUrl?: string;
+  };
 };
 
 /* ================= COMPONENT ================= */
 
-export default function SupplierOrders() {
-  const router = useRouter();
-
+export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
-  /* ================= API ================= */
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  /* ================= LOAD ORDERS ================= */
 
   const loadOrders = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
 
       const res = await fetch(API('/api/supplier/orders'), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message);
-      }
-
       setOrders(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to load orders');
+    } catch (err) {
+      Alert.alert('Failed to load orders');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  /* ================= CAMERA + DELIVER ================= */
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadOrders();
-    setRefreshing(false);
-  };
+  const deliverOrder = async (orderId: string) => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Camera permission required');
+      return;
+    }
 
-  /* ================= UPDATE STATUS ================= */
+    const photo = await ImagePicker.launchCameraAsync({
+      base64: true,
+      quality: 0.7,
+    });
 
-  const updateStatus = async (
-    orderId: string,
-    status: 'ACCEPTED' | 'REJECTED'
-  ) => {
-    Alert.alert(
-      'Confirm Action',
-      `Are you sure you want to ${status.toLowerCase()} this order?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes',
-          onPress: async () => {
-            try {
-              setUpdatingId(orderId);
-              const token = await AsyncStorage.getItem('token');
+    if (photo.canceled) return;
 
-              const res = await fetch(
-  API(`/api/supplier/order/${orderId}/status`),
-  {
-    method: 'PUT', // ✅ FIX
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ status }),
-  }
-);
+    setUploadingId(orderId);
 
-              const data = await res.json();
+    try {
+      const token = await AsyncStorage.getItem('token');
 
-              if (!res.ok) {
-                Alert.alert('Error', data.message || 'Action failed');
-                return;
-              }
-
-              await loadOrders();
-            } catch {
-              Alert.alert('Server Error', 'Please try again later');
-            } finally {
-              setUpdatingId(null);
-            }
-          },
+      /* 1️⃣ Upload image to ImageKit */
+      const uploadRes = await fetch(API('/api/upload/image'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-      ]
-    );
-  };
+        body: JSON.stringify({
+          image: photo.assets[0].base64,
+        }),
+      });
 
-  /* ================= HELPERS ================= */
+      const uploadData = await uploadRes.json();
 
-  const statusColor = (s: OrderStatus) => {
-    switch (s) {
-      case 'PENDING':
-        return '#f59e0b';
-      case 'ACCEPTED':
-        return '#2563eb';
-      case 'DELIVERED':
-        return '#10b981';
-      case 'REJECTED':
-        return '#ef4444';
+      if (!uploadRes.ok) {
+        throw new Error('Image upload failed');
+      }
+
+      /* 2️⃣ Mark order delivered */
+      const deliverRes = await fetch(
+        API(`/api/supplier/orders/${orderId}/deliver`),
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            imageUrl: uploadData.url,
+            message: 'Delivered successfully',
+          }),
+        }
+      );
+
+      if (!deliverRes.ok) {
+        throw new Error('Delivery update failed');
+      }
+
+      Alert.alert('Order Delivered');
+      loadOrders();
+    } catch (err) {
+      Alert.alert('Delivery failed');
+    } finally {
+      setUploadingId(null);
     }
   };
 
-  /* ================= RENDER ================= */
+  /* ================= UI ================= */
 
-  const renderItem = ({ item }: { item: Order }) => (
-    <View style={styles.card}>
-      {/* HEADER */}
-      <View style={styles.cardHeader}>
-        <Text style={styles.orderId}>
-          #{item._id.slice(-6).toUpperCase()}
-        </Text>
-
-        <View
-          style={[
-            styles.statusPill,
-            { backgroundColor: statusColor(item.status) + '22' },
-          ]}
-        >
-          <Text style={{ color: statusColor(item.status), fontWeight: '800' }}>
-            {item.status}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={styles.project}>
-        {item.site?.projectName || 'Project'}
-      </Text>
-
-      <Text style={styles.contractor}>
-        Contractor: {item.contractor?.username || '—'}
-      </Text>
-
-      {/* MATERIALS */}
-      <View style={styles.materials}>
-        {item.materials.map((m, i) => (
-          <Text key={i} style={styles.materialText}>
-            • {m.name} ({m.quantity} {m.unit})
-          </Text>
-        ))}
-      </View>
-
-      {/* ACTIONS */}
-      {item.status === 'PENDING' && (
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: '#10b981' }]}
-            disabled={updatingId === item._id}
-            onPress={() => updateStatus(item._id, 'ACCEPTED')}
-          >
-            {updatingId === item._id ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.btnText}>Accept</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: '#ef4444' }]}
-            disabled={updatingId === item._id}
-            onPress={() => updateStatus(item._id, 'REJECTED')}
-          >
-            {updatingId === item._id ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.btnText}>Reject</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {item.status === 'ACCEPTED' && (
-        <TouchableOpacity
-          style={styles.deliverBtn}
-          onPress={() =>
-            router.push({
-              pathname: '/(supplier)/deliveries',
-              params: { orderId: item._id },
-            })
-          }
-        >
-          <Ionicons name="car-outline" size={18} color="#fff" />
-          <Text style={styles.deliverText}>Mark Delivered</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  if (loading) {
+    return <ActivityIndicator style={{ marginTop: 40 }} />;
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Orders Received</Text>
+    <FlatList
+      data={orders}
+      keyExtractor={(item) => item._id}
+      contentContainerStyle={{ padding: 16 }}
+      renderItem={({ item }) => (
+        <View style={styles.card}>
+          <Text style={styles.orderNo}>{item.orderNumber}</Text>
 
-      {loading ? (
-        <ActivityIndicator size="large" />
-      ) : (
-        <FlatList
-          data={orders}
-          keyExtractor={(i) => i._id}
-          renderItem={renderItem}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          ListEmptyComponent={
-            <Text style={styles.empty}>No orders found</Text>
-          }
-        />
+          <Text style={styles.site}>
+            Site: {item.site?.projectName}
+          </Text>
+
+          <Text style={styles.contractor}>
+            Contractor: {item.contractor?.username}
+          </Text>
+
+          {/* MATERIALS */}
+          <View style={styles.materialBox}>
+            {item.materials.map(
+              (
+                m: { name: string; quantity: number; unit: string },
+                idx: number
+              ) => (
+                <View key={idx} style={styles.materialRow}>
+                  <Text style={styles.materialName}>{m.name}</Text>
+                  <Text style={styles.materialQty}>
+                    {m.quantity} {m.unit}
+                  </Text>
+                </View>
+              )
+            )}
+          </View>
+
+          <Text
+            style={[
+              styles.status,
+              item.status === 'DELIVERED' && { color: '#16a34a' },
+            ]}
+          >
+            Status: {item.status}
+          </Text>
+
+          {/* DELIVERY IMAGE */}
+          {item.delivery?.imageUrl && (
+            <Image
+              source={{ uri: item.delivery.imageUrl }}
+              style={styles.image}
+            />
+          )}
+
+          {/* ACTION */}
+          {item.status !== 'DELIVERED' && (
+            <TouchableOpacity
+              style={styles.btn}
+              onPress={() => deliverOrder(item._id)}
+            >
+              {uploadingId === item._id ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.btnText}>
+                  Capture & Deliver
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
       )}
-    </SafeAreaView>
+    />
   );
 }
 
 /* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
-  title: { fontSize: 28, fontWeight: '800', marginBottom: 10 },
-
   card: {
     backgroundColor: '#fff',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 14,
     marginBottom: 14,
   },
 
-  cardHeader: {
+  orderNo: { fontSize: 16, fontWeight: '800' },
+  site: { marginTop: 4, color: '#475569' },
+  contractor: { marginTop: 2, color: '#64748b' },
+
+  materialBox: {
+    marginTop: 10,
+    backgroundColor: '#f8fafc',
+    padding: 10,
+    borderRadius: 10,
+  },
+
+  materialRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 4,
   },
 
-  orderId: { fontWeight: '800' },
+  materialName: { fontWeight: '700' },
+  materialQty: { color: '#475569' },
 
-  statusPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+  status: { marginTop: 10, fontWeight: '800' },
+
+  image: {
+    height: 160,
     borderRadius: 12,
-  },
-
-  project: { marginTop: 6, color: '#64748b' },
-  contractor: { fontSize: 13, marginTop: 4 },
-
-  materials: { marginTop: 10 },
-  materialText: { fontSize: 13 },
-
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
+    marginTop: 10,
   },
 
   btn: {
-    flex: 1,
-    padding: 10,
+    backgroundColor: '#10b981',
+    padding: 12,
     borderRadius: 10,
+    marginTop: 12,
     alignItems: 'center',
   },
 
   btnText: { color: '#fff', fontWeight: '800' },
-
-  deliverBtn: {
-    flexDirection: 'row',
-    gap: 8,
-    backgroundColor: '#2563eb',
-    padding: 12,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-
-  deliverText: { color: '#fff', fontWeight: '800' },
-
-  empty: {
-    textAlign: 'center',
-    marginTop: 40,
-    color: '#94a3b8',
-  },
 });

@@ -51,32 +51,33 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
 
   /* ================= LOAD ORDERS ================= */
-
+  
   const loadOrders = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
+  try {
+    const token = await AsyncStorage.getItem('token');
 
-      const res = await fetch(API('/api/contractor/order/${id}'), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    const res = await fetch(API('/api/contractor/orders'), {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      if (!res.ok) {
-        throw new Error('Failed to fetch orders');
-      }
-
-      const data = await res.json();
-
-      // 🔥 SAFETY
-      setOrders(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.log('Failed to load orders', err);
-      setOrders([]);
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      throw new Error('Failed to fetch orders');
     }
-  };
+
+    const data = await res.json();
+
+    // ✅ Safety
+    setOrders(Array.isArray(data) ? data : []);
+  } catch (err) {
+    console.log('Failed to load orders', err);
+    setOrders([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     loadOrders();
@@ -90,18 +91,21 @@ export default function Orders() {
 
   /* ================= HELPERS ================= */
 
-  const statusColor = (status: OrderStatus) => {
-    switch (status) {
-      case 'PENDING':
-        return '#f59e0b';
-      case 'ACCEPTED':
-        return '#2563eb';
-      case 'DISPATCHED':
-        return '#7c3aed';
-      case 'DELIVERED':
-        return '#10b981';
-    }
-  };
+ const statusColor = (status: OrderStatus) => {
+  switch (status) {
+    case 'PENDING':
+      return '#f59e0b';
+    case 'ACCEPTED':
+      return '#2563eb';
+    case 'DISPATCHED':
+      return '#7c3aed';
+    case 'DELIVERED':
+      return '#10b981';
+    default:
+      return '#64748b';
+  }
+};
+
 
   const filteredOrders = orders.filter((o) => {
     if (projectId && o.site?._id !== projectId) return false;

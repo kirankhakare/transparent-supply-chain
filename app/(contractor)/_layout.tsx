@@ -14,6 +14,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import { API } from '@/services/api';
 
+/* ================= ONLY THESE ROUTES SHOULD APPEAR ================= */
+
+const ALLOWED_ROUTES = ['projects', 'orders', 'expenses','chat'];
+
 export default function ContractorLayout() {
   const router = useRouter();
 
@@ -103,7 +107,10 @@ export default function ContractorLayout() {
             {/* PROJECT SUMMARY */}
             {site ? (
               <View style={styles.projectBox}>
-                <Row icon="briefcase-outline" text={site.projectName || 'Project'} />
+                <Row
+                  icon="briefcase-outline"
+                  text={site.projectName || 'Project'}
+                />
                 <Row
                   icon="stats-chart-outline"
                   text={`${site.completedWork} / ${site.totalWork} completed`}
@@ -115,28 +122,34 @@ export default function ContractorLayout() {
 
             <View style={styles.divider} />
 
-            {/* MENU */}
-            {props.state.routeNames.map((route, index) => {
-              if (route === 'orderDetails') return null;
-              const focused = index === props.state.index;
+            {/* MENU (FILTERED) */}
+            {props.state.routeNames
+              .filter((route) => ALLOWED_ROUTES.includes(route))
+              .map((route, index) => {
+                const focused = index === props.state.index;
 
-              return (
-                <TouchableOpacity
-                  key={route}
-                  onPress={() => props.navigation.navigate(route)}
-                  style={[styles.menuItem, focused && styles.menuActive]}
-                >
-                  <Ionicons
-                    name={getIcon(route, focused)}
-                    size={22}
-                    color={focused ? '#60a5fa' : '#94a3b8'}
-                  />
-                  <Text style={[styles.menuText, focused && styles.menuTextActive]}>
-                    {getTitle(route)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                return (
+                  <TouchableOpacity
+                    key={route}
+                    onPress={() => props.navigation.navigate(route)}
+                    style={[styles.menuItem, focused && styles.menuActive]}
+                  >
+                    <Ionicons
+                      name={getIcon(route, focused)}
+                      size={22}
+                      color={focused ? '#60a5fa' : '#94a3b8'}
+                    />
+                    <Text
+                      style={[
+                        styles.menuText,
+                        focused && styles.menuTextActive,
+                      ]}
+                    >
+                      {getTitle(route)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
 
             <View style={{ flex: 1 }} />
 
@@ -148,9 +161,12 @@ export default function ContractorLayout() {
           </SafeAreaView>
         )}
       >
+        {/* ONLY THESE ARE REGISTERED IN DRAWER */}
         <Drawer.Screen name="projects" options={{ title: 'My Projects' }} />
         <Drawer.Screen name="orders" options={{ title: 'Orders' }} />
         <Drawer.Screen name="expenses" options={{ title: 'Expenses' }} />
+        <Drawer.Screen name="chat" options={{ title: 'Chat' }} />
+        {/* HIDDEN SCREENS */}
         <Drawer.Screen
           name="orderDetails"
           options={{ drawerItemStyle: { display: 'none' } }}
@@ -173,11 +189,14 @@ const getIcon = (route: string, focused: boolean) => {
   if (route === 'projects') return focused ? 'briefcase' : 'briefcase-outline';
   if (route === 'orders') return focused ? 'cart' : 'cart-outline';
   if (route === 'expenses') return focused ? 'cash' : 'cash-outline';
+  if (route === 'chat') return focused ? 'chatbox-ellipses' : 'cash-outline';
   return 'ellipse-outline';
 };
 
 const getTitle = (route: string) =>
-  route === 'projects' ? 'My Projects' : route[0].toUpperCase() + route.slice(1);
+  route === 'projects'
+    ? 'My Projects'
+    : route[0].toUpperCase() + route.slice(1);
 
 /* ================= STYLES ================= */
 

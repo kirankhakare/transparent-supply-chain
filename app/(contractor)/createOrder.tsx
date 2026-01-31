@@ -95,13 +95,17 @@ export default function CreateOrder() {
 
   /* ================= SUBMIT ================= */
 
- const submitOrder = async () => {
+  const submitOrder = async () => {
+  if (!siteId) {
+    Alert.alert('Invalid site');
+    return;
+  }
+
   if (!supplierId) {
     Alert.alert('Please select supplier');
     return;
   }
 
-  // ✅ Validate materials
   for (let m of materials) {
     if (!m.name || !m.unit || !m.quantity) {
       Alert.alert('Please fill all material fields');
@@ -119,7 +123,7 @@ export default function CreateOrder() {
   try {
     const token = await AsyncStorage.getItem('token');
 
-    const res = await fetch(API('/api/contractor/order'), {
+    const res = await fetch(API('/api/contractor/orders'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -130,7 +134,7 @@ export default function CreateOrder() {
         supplierId,
         materials: materials.map((m) => ({
           name: m.name.trim(),
-          quantity: Number(m.quantity), // ✅ always valid now
+          quantity: Number(m.quantity),
           unit: m.unit.trim(),
         })),
       }),
@@ -143,14 +147,18 @@ export default function CreateOrder() {
       return;
     }
 
-    Alert.alert('Order placed successfully');
-    router.back();
-  } catch (err) {
+    Alert.alert(
+      'Success',
+      'Material order placed successfully',
+      [{ text: 'OK', onPress: () => router.back() }]
+    );
+  } catch {
     Alert.alert('Order failed');
   } finally {
     setLoading(false);
   }
 };
+
 
 
   /* ================= UI ================= */

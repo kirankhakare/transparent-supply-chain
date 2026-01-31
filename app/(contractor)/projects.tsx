@@ -40,26 +40,89 @@ export default function Projects() {
   const [stageMap, setStageMap] = useState<Record<string, string>>({});
   const [remarksMap, setRemarksMap] = useState<Record<string, string>>({});
 
+  const [expenseModal, setExpenseModal] = useState(false);
+const [expenseSiteId, setExpenseSiteId] = useState<string | null>(null);
+
+const [expenseData, setExpenseData] = useState({
+  category: 'MATERIALS',
+  amount: '',
+  description: '',
+  paidTo: '',
+  payment: 'CASH',
+});
+
   /* ================= LOAD PROJECTS ================= */
 
   const loadProjects = async () => {
     try {
+      setRefreshing(true);
+
       const token = await AsyncStorage.getItem('token');
       const res = await fetch(API('/api/contractor/sites'), {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       const data = await res.json();
       setProjects(data.sites || []);
     } catch {
       Alert.alert('Failed to load projects');
     } finally {
+      setRefreshing(false);
       setLoading(false);
     }
   };
 
+
   useEffect(() => {
     loadProjects();
   }, []);
+
+ const submitExpense = async () => {
+  if (!expenseSiteId || !expenseData.amount) {
+    Alert.alert('Amount is required');
+    return;
+  }
+
+  try {
+    const token = await AsyncStorage.getItem('token');
+
+    const res = await fetch(API('/api/contractor/expenses'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        site: expenseSiteId,
+        category: expenseData.category,
+        amount: Number(expenseData.amount),
+        description: expenseData.description,
+        paidTo: expenseData.paidTo,
+        payment: expenseData.payment,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      Alert.alert(data.message || 'Failed to add expense');
+      return;
+    }
+
+    Alert.alert('Expense added successfully');
+    setExpenseModal(false);
+    setExpenseData({
+      category: 'MATERIALS',
+      amount: '',
+      description: '',
+      paidTo: '',
+      payment: 'CASH',
+    });
+  } catch {
+    Alert.alert('Server error');
+  }
+};
+
 
   /* ================= PROGRESS UPDATE ================= */
 
@@ -145,10 +208,31 @@ export default function Projects() {
                 ? Math.round((p.completedWork / p.totalWork) * 100)
                 : 0;
 
+
+
+            function setExpenseModal(arg0: boolean) {
+              throw new Error('Function not implemented.');
+            }
+
             return (
               <View key={p._id} style={styles.card}>
                 <Text style={styles.project}>
                   {p.user.username}'s Project
+                </Text>
+                <Text
+                  style={[
+                    styles.status,
+                    {
+                      color:
+                        getStatus(p) === 'COMPLETED'
+                          ? '#16a34a'
+                          : getStatus(p) === 'ACTIVE'
+                            ? '#2563eb'
+                            : '#f59e0b',
+                    },
+                  ]}
+                >
+                  {getStatus(p)}
                 </Text>
 
                 <Text style={styles.percent}>{percent}% completed</Text>
@@ -214,6 +298,48 @@ export default function Projects() {
                     >
                       <Text style={styles.btnText}>Submit Progress</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.btn, { backgroundColor: '#6366f1' }]}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/(contractor)/progressHistory',
+                          params: { siteId: p._id },
+                        })
+                      }
+                    >
+                      <Ionicons name="time-outline" size={16} color="#fff" />
+                      <Text style={styles.btnText}>Progress History</Text>
+                    </TouchableOpacity>
+                   <TouchableOpacity
+  style={[styles.btn, { backgroundColor: '#f97316' }]}
+  onPress={() =>
+    router.push({
+      pathname: '/(contractor)/addExpense',
+      params: { siteId: p._id },
+    })
+  }
+>
+  <Ionicons name="cash-outline" size={16} color="#fff" />
+  <Text style={styles.btnText}>Add Expense</Text>
+</TouchableOpacity>
+
+
+
+                    {/* VIEW EXPENSE */}
+                    <TouchableOpacity
+                      style={[styles.btn, { backgroundColor: '#0ea5e9' }]}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/(contractor)/expenses',
+                          params: { siteId: p._id },
+                        })
+                      }
+                    >
+                      <Ionicons name="list-outline" size={16} color="#fff" />
+                      <Text style={styles.btnText}>View Expenses</Text>
+                    </TouchableOpacity>
+
+
                   </View>
                 )}
               </View>
@@ -230,6 +356,39 @@ export default function Projects() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   title: { fontSize: 26, fontWeight: '800', marginBottom: 12 },
+ modalOverlay: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0,0,0,0.6)',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+modalCard: {
+  width: '90%',
+  backgroundColor: '#fff',
+  borderRadius: 16,
+  padding: 20,
+},
+modalTitle: {
+  fontSize: 20,
+  fontWeight: '800',
+  marginBottom: 12,
+},
+
+
+  categoryBtn: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#e5e7eb',
+    marginTop: 6,
+  },
+
+  categoryActive: {
+    backgroundColor: '#bbf7d0',
+  },
 
   search: {
     backgroundColor: '#fff',
@@ -275,4 +434,8 @@ const styles = StyleSheet.create({
   },
 
   empty: { textAlign: 'center', marginTop: 40 },
+  status: {
+    fontWeight: '700',
+    marginTop: 4,
+  },
 });

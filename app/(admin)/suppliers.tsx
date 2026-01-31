@@ -1,17 +1,17 @@
-import { useEffect, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
+  ActivityIndicator,
   FlatList,
   StyleSheet,
-  TouchableOpacity,
+  Text,
   TextInput,
-  ActivityIndicator,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API } from '../../services/api';
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { API } from "../../services/api";
 
 type Supplier = {
   _id: string;
@@ -22,7 +22,7 @@ type Supplier = {
 
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,16 +33,16 @@ export default function Suppliers() {
 
   const fetchSuppliers = async () => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem("token");
 
-      const res = await fetch(API('/api/admin/suppliers'), {
+      const res = await fetch(API("/api/admin/suppliers"), {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await res.json();
       setSuppliers(data);
     } catch (err) {
-      console.log('Supplier fetch error', err);
+      console.log("Supplier fetch error", err);
     } finally {
       setLoading(false);
     }
@@ -52,25 +52,22 @@ export default function Suppliers() {
 
   const toggleStatus = async (supplier: Supplier) => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem("token");
 
-      await fetch(
-        API(`/api/admin/suppliers/${supplier._id}/status`),
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            isApproved: !supplier.isApproved,
-          }),
-        }
-      );
+      await fetch(API(`/api/admin/suppliers/${supplier._id}/status`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          isApproved: !supplier.isApproved,
+        }),
+      });
 
       fetchSuppliers();
     } catch (err) {
-      console.log('Status update error', err);
+      console.log("Status update error", err);
     }
   };
 
@@ -79,7 +76,7 @@ export default function Suppliers() {
   const filteredSuppliers = suppliers.filter(
     (s) =>
       s.username.toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase())
+      s.email.toLowerCase().includes(search.toLowerCase()),
   );
 
   /* ================= RENDER ================= */
@@ -89,7 +86,6 @@ export default function Suppliers() {
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.name}>{item.username}</Text>
-          
         </View>
 
         <TouchableOpacity
@@ -97,19 +93,19 @@ export default function Suppliers() {
             styles.statusBadge,
             {
               backgroundColor: item.isApproved
-                ? 'rgba(16,185,129,0.15)'
-                : 'rgba(239,68,68,0.15)',
+                ? "rgba(16,185,129,0.15)"
+                : "rgba(239,68,68,0.15)",
             },
           ]}
           onPress={() => toggleStatus(item)}
         >
           <Text
             style={{
-              color: item.isApproved ? '#10b981' : '#ef4444',
-              fontWeight: '700',
+              color: item.isApproved ? "#10b981" : "#ef4444",
+              fontWeight: "700",
             }}
           >
-            {item.isApproved ? 'ACTIVE' : 'INACTIVE'}
+            {item.isApproved ? "ACTIVE" : "INACTIVE"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -119,9 +115,7 @@ export default function Suppliers() {
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Suppliers</Text>
-      <Text style={styles.subtitle}>
-        All registered suppliers
-      </Text>
+      <Text style={styles.subtitle}>All registered suppliers</Text>
 
       <View style={styles.searchBox}>
         <Ionicons name="search-outline" size={18} color="#94a3b8" />
@@ -140,22 +134,19 @@ export default function Suppliers() {
           data={filteredSuppliers}
           keyExtractor={(item) => item._id}
           renderItem={renderSupplier}
-          ListEmptyComponent={
-            <Text>No suppliers found</Text>
-          }
+          ListEmptyComponent={<Text>No suppliers found</Text>}
         />
       )}
     </SafeAreaView>
   );
 }
 
-
 /* ================= STYLES ================= */
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#f8fafc",
     padding: 20,
   },
 
@@ -165,25 +156,25 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 28,
-    fontWeight: '800',
-    color: '#0f172a',
+    fontWeight: "800",
+    color: "#0f172a",
   },
 
   subtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: "#64748b",
     marginTop: 4,
   },
 
   searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     borderRadius: 12,
     paddingHorizontal: 14,
     height: 52,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: "#e2e8f0",
     marginBottom: 16,
   },
 
@@ -194,29 +185,29 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: "#e2e8f0",
   },
 
   headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 10,
   },
 
   name: {
     fontSize: 17,
-    fontWeight: '700',
-    color: '#0f172a',
+    fontWeight: "700",
+    color: "#0f172a",
   },
 
   category: {
     fontSize: 13,
-    color: '#64748b',
+    color: "#64748b",
   },
 
   statusBadge: {
@@ -227,18 +218,18 @@ const styles = StyleSheet.create({
 
   statusText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 6,
   },
 
   infoText: {
     marginLeft: 8,
     fontSize: 14,
-    color: '#475569',
+    color: "#475569",
   },
 });

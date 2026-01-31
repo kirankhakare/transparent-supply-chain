@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLocalSearchParams } from 'expo-router';
 import { API } from '@/services/api';
 
 /* ================= TYPES ================= */
@@ -38,6 +39,8 @@ type Expense = {
 /* ================= COMPONENT ================= */
 
 export default function Expenses() {
+  const { siteId } = useLocalSearchParams<{ siteId?: string }>();
+
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -49,11 +52,15 @@ export default function Expenses() {
     try {
       const token = await AsyncStorage.getItem('token');
 
-      const res = await fetch(API('/api/contractor/expenses'), {
+      const url = siteId
+  ? `/api/contractor/expenses?siteId=${siteId}`
+  : '/api/contractor/expenses';
+
+      const res = await fetch(API(url), {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error('Failed');
 
       const data = await res.json();
       setExpenses(Array.isArray(data) ? data : []);
@@ -67,7 +74,7 @@ export default function Expenses() {
 
   useEffect(() => {
     loadExpenses();
-  }, []);
+  }, [siteId]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -119,9 +126,7 @@ export default function Expenses() {
         <Text style={styles.amount}>₹ {item.amount}</Text>
       </View>
 
-      <Text style={styles.desc}>
-        {item.description || 'Expense'}
-      </Text>
+      <Text style={styles.desc}>{item.description || 'Expense'}</Text>
 
       <Text style={styles.project}>
         {item.site?.projectName || 'Project'}
@@ -153,7 +158,9 @@ export default function Expenses() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      <Text style={styles.title}>Expenses</Text>
+      <Text style={styles.title}>
+        {siteId ? 'Site Expenses' : 'All Expenses'}
+      </Text>
 
       <TextInput
         placeholder="Search expense..."

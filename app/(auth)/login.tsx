@@ -63,7 +63,7 @@ export default function Login() {
       } else if (role === 'contractor') {
         router.replace('/(contractor)/projects');
       } else if (role === 'supplier') {
-        router.replace('/(supplier)/materials');
+        router.replace('/(supplier)/orders');
       } else {
         router.replace('/(user)/userDashboard');
       }
