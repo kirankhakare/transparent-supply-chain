@@ -193,11 +193,12 @@ const [expenseData, setExpenseData] = useState({
         <Text style={styles.title}>My Projects</Text>
 
         <TextInput
-          placeholder="Search project..."
-          value={search}
-          onChangeText={setSearch}
-          style={styles.search}
-        />
+  placeholder="Search project..."
+  placeholderTextColor="#94a3b8"
+  value={search}
+  onChangeText={setSearch}
+  style={styles.search}
+/>
 
         {loading ? (
           <Text style={styles.empty}>Loading...</Text>
@@ -264,34 +265,36 @@ const [expenseData, setExpenseData] = useState({
 
                 {activeSiteId === p._id && (
                   <View style={styles.form}>
-                    <TextInput
-                      placeholder="Progress %"
-                      keyboardType="numeric"
-                      value={progressMap[p._id] || ''}
-                      onChangeText={(v) =>
-                        setProgressMap({ ...progressMap, [p._id]: v })
-                      }
-                      style={styles.input}
-                    />
+                   <TextInput
+  placeholder="Progress %"
+  placeholderTextColor="#94a3b8"
+  keyboardType="numeric"
+  value={progressMap[p._id] || ''}
+  onChangeText={(v) =>
+    setProgressMap({ ...progressMap, [p._id]: v })
+  }
+  style={styles.input}
+/>
 
-                    <TextInput
-                      placeholder="Stage"
-                      value={stageMap[p._id] || ''}
-                      onChangeText={(v) =>
-                        setStageMap({ ...stageMap, [p._id]: v })
-                      }
-                      style={styles.input}
-                    />
+<TextInput
+  placeholder="Stage"
+  placeholderTextColor="#94a3b8"
+  value={stageMap[p._id] || ''}
+  onChangeText={(v) =>
+    setStageMap({ ...stageMap, [p._id]: v })
+  }
+  style={styles.input}
+/>
 
-                    <TextInput
-                      placeholder="Remarks"
-                      value={remarksMap[p._id] || ''}
-                      onChangeText={(v) =>
-                        setRemarksMap({ ...remarksMap, [p._id]: v })
-                      }
-                      style={styles.input}
-                    />
-
+<TextInput
+  placeholder="Remarks"
+  placeholderTextColor="#94a3b8"
+  value={remarksMap[p._id] || ''}
+  onChangeText={(v) =>
+    setRemarksMap({ ...remarksMap, [p._id]: v })
+  }
+  style={styles.input}
+/>
                     <TouchableOpacity
                       style={[styles.btn, { backgroundColor: '#0f172a' }]}
                       onPress={() => submitProgress(p._id)}
@@ -390,12 +393,13 @@ modalTitle: {
     backgroundColor: '#bbf7d0',
   },
 
-  search: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
+ search: {
+  backgroundColor: '#fff',
+  padding: 12,
+  borderRadius: 10,
+  marginBottom: 10,
+  color: '#0f172a',   // 👈 MUST
+},
 
   card: {
     backgroundColor: '#fff',
@@ -427,11 +431,12 @@ modalTitle: {
   },
 
   input: {
-    backgroundColor: '#fff',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 6,
-  },
+  backgroundColor: '#fff',
+  padding: 10,
+  borderRadius: 8,
+  marginBottom: 6,
+  color: '#0f172a',   // 👈 MUST
+},
 
   empty: { textAlign: 'center', marginTop: 40 },
   status: {

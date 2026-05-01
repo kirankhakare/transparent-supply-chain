@@ -82,20 +82,23 @@ export default function Login() {
       <Text style={styles.title}>Login</Text>
 
       <TextInput
-        placeholder="Username"
-        style={styles.input}
-        value={username}
-        onChangeText={setUsername}
-        autoCapitalize="none"
-      />
+  placeholder="Username"
+  placeholderTextColor="#94a3b8"
+  style={styles.input}
+  value={username}
+  onChangeText={setUsername}
+  autoCapitalize="none"
+/>
 
-      <TextInput
-        placeholder="Password"
-        style={styles.input}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+
+     <TextInput
+  placeholder="Password"
+  placeholderTextColor="#94a3b8"
+  style={styles.input}
+  secureTextEntry
+  value={password}
+  onChangeText={setPassword}
+/>
 
       <TouchableOpacity
         style={[styles.button, loading && { opacity: 0.7 }]}
@@ -126,11 +129,12 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 15,
-  },
+  backgroundColor: '#fff',
+  borderRadius: 10,
+  padding: 14,
+  marginBottom: 15,
+  color: '#0f172a',   // 👈 MUST FIX
+},
   button: {
     backgroundColor: '#2563eb',
     padding: 15,

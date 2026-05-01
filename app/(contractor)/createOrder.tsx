@@ -194,24 +194,29 @@ export default function CreateOrder() {
         {materials.map((m, i) => (
           <View key={i} style={styles.materialCard}>
             <TextInput
-              placeholder="Material name"
-              value={m.name}
-              onChangeText={(v) => updateMaterial(i, 'name', v)}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Quantity"
-              keyboardType="numeric"
-              value={m.quantity}
-              onChangeText={(v) => updateMaterial(i, 'quantity', v)}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Unit (kg, bag)"
-              value={m.unit}
-              onChangeText={(v) => updateMaterial(i, 'unit', v)}
-              style={styles.input}
-            />
+  placeholder="Material name"
+  placeholderTextColor="#94a3b8"
+  value={m.name}
+  onChangeText={(v) => updateMaterial(i, 'name', v)}
+  style={styles.input}
+/>
+
+<TextInput
+  placeholder="Quantity"
+  placeholderTextColor="#94a3b8"
+  keyboardType="numeric"
+  value={m.quantity}
+  onChangeText={(v) => updateMaterial(i, 'quantity', v)}
+  style={styles.input}
+/>
+
+<TextInput
+  placeholder="Unit (kg, bag)"
+  placeholderTextColor="#94a3b8"
+  value={m.unit}
+  onChangeText={(v) => updateMaterial(i, 'unit', v)}
+  style={styles.input}
+/>
           </View>
         ))}
 

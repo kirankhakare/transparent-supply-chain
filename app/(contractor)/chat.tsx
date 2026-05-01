@@ -148,12 +148,13 @@ export default function ContractorChat() {
 
       {/* INPUT */}
       <View style={styles.inputBar}>
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder="Message"
-          style={styles.input}
-        />
+       <TextInput
+  value={text}
+  onChangeText={setText}
+  placeholder="Message"
+  placeholderTextColor="#9ca3af"
+  style={styles.input}
+/>
         <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
           <Ionicons name="send" size={18} color="#fff" />
         </TouchableOpacity>
@@ -221,12 +222,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   input: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
+  flex: 1,
+  backgroundColor: '#fff',
+  borderRadius: 20,
+  paddingHorizontal: 14,
+  paddingVertical: 8,
+  color: '#111827',   // 👈 MUST FIX
+},
   sendBtn: {
     marginLeft: 8,
     backgroundColor: '#25d366',

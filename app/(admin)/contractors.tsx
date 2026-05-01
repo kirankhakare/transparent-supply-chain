@@ -177,11 +177,12 @@ export default function Contractors() {
       <View style={styles.searchBox}>
         <Ionicons name="search-outline" size={18} color="#6b7280" />
         <TextInput
-          placeholder="Search contractor..."
-          value={search}
-          onChangeText={setSearch}
-          style={styles.searchInput}
-        />
+  placeholder="Search contractor..."
+  placeholderTextColor="#888"
+  value={search}
+  onChangeText={setSearch}
+  style={styles.searchInput}
+/>
       </View>
 
       {loading ? (
@@ -229,12 +230,14 @@ const styles = StyleSheet.create({
     height: 48,
     marginBottom: 16,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-  },
+ searchInput: {
+  flex: 1,
+  marginLeft: 8,
+  color: "#000",              // 👈 IMPORTANT
+  paddingVertical: 8,
+},
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: '#d6b6b6',
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,

@@ -72,40 +72,45 @@ export default function AddExpense() {
         <Text style={styles.title}>Add Expense</Text>
 
         <TextInput
-          placeholder="Category (MATERIALS / LABOR / OTHER)"
-          value={category}
-          onChangeText={setCategory}
-          style={styles.input}
-        />
+  placeholder="Category (MATERIALS / LABOR / OTHER)"
+  placeholderTextColor="#94a3b8"
+  value={category}
+  onChangeText={setCategory}
+  style={styles.input}
+/>
 
         <TextInput
-          placeholder="Amount"
-          keyboardType="numeric"
-          value={amount}
-          onChangeText={setAmount}
-          style={styles.input}
-        />
+  placeholder="Amount"
+  placeholderTextColor="#94a3b8"
+  keyboardType="numeric"
+  value={amount}
+  onChangeText={setAmount}
+  style={styles.input}
+/>
 
-        <TextInput
-          placeholder="Paid To"
-          value={paidTo}
-          onChangeText={setPaidTo}
-          style={styles.input}
-        />
+<TextInput
+  placeholder="Paid To"
+  placeholderTextColor="#94a3b8"
+  value={paidTo}
+  onChangeText={setPaidTo}
+  style={styles.input}
+/>
 
-        <TextInput
-          placeholder="Remarks / Description"
-          value={description}
-          onChangeText={setDescription}
-          style={styles.input}
-        />
+       <TextInput
+  placeholder="Remarks / Description"
+  placeholderTextColor="#94a3b8"
+  value={description}
+  onChangeText={setDescription}
+  style={styles.input}
+/>
 
-        <TextInput
-          placeholder="Payment Mode (CASH / BANK / ONLINE)"
-          value={payment}
-          onChangeText={setPayment}
-          style={styles.input}
-        />
+<TextInput
+  placeholder="Payment Mode (CASH / BANK / ONLINE)"
+  placeholderTextColor="#94a3b8"
+  value={payment}
+  onChangeText={setPayment}
+  style={styles.input}
+/>
 
         <TouchableOpacity
           style={styles.submitBtn}
@@ -135,13 +140,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   input: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
+  backgroundColor: '#fff',
+  padding: 12,
+  borderRadius: 12,
+  marginBottom: 12,
+  borderWidth: 1,
+  borderColor: '#e2e8f0',
+  color: '#0f172a',   // 👈 MUST FIX
+},
   submitBtn: {
     backgroundColor: '#f97316',
     padding: 14,

@@ -158,26 +158,28 @@ export default function CreateUser() {
             <Text style={styles.label}>Username *</Text>
             <View style={styles.inputBox}>
               <Ionicons name="person-outline" size={20} color="#64748b" />
-              <TextInput
-                placeholder="Enter username"
-                style={styles.input}
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-              />
+             <TextInput
+  placeholder="Enter username"
+  placeholderTextColor="#94a3b8"
+  style={styles.input}
+  value={username}
+  onChangeText={setUsername}
+  autoCapitalize="none"
+/>
             </View>
 
             {/* PASSWORD */}
             <Text style={styles.label}>Password *</Text>
             <View style={styles.inputBox}>
               <Ionicons name="lock-closed-outline" size={20} color="#64748b" />
-              <TextInput
-                placeholder="Enter password"
-                secureTextEntry={!showPassword}
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-              />
+             <TextInput
+  placeholder="Enter password"
+  placeholderTextColor="#94a3b8"
+  secureTextEntry={!showPassword}
+  style={styles.input}
+  value={password}
+  onChangeText={setPassword}
+/>
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
               >
@@ -193,13 +195,14 @@ export default function CreateUser() {
             <Text style={styles.label}>Confirm Password *</Text>
             <View style={styles.inputBox}>
               <Ionicons name="lock-closed-outline" size={20} color="#64748b" />
-              <TextInput
-                placeholder="Confirm password"
-                secureTextEntry={!showConfirmPassword}
-                style={styles.input}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-              />
+             <TextInput
+  placeholder="Confirm password"
+  placeholderTextColor="#94a3b8"
+  secureTextEntry={!showConfirmPassword}
+  style={styles.input}
+  value={confirmPassword}
+  onChangeText={setConfirmPassword}
+/>
               <TouchableOpacity
                 onPress={() =>
                   setShowConfirmPassword(!showConfirmPassword)
@@ -351,12 +354,13 @@ roleLabelActive: {
     height: 54,
     backgroundColor: '#fff',
   },
-  input: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
-    color: '#0f172a',
-  },
+ input: {
+  flex: 1,
+  marginLeft: 10,
+  fontSize: 16,
+  color: '#0f172a',   // already good
+  paddingVertical: 6, // 👈 better alignment
+},
   button: {
     marginTop: 30,
     marginBottom :20,

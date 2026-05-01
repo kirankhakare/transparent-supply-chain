@@ -77,23 +77,21 @@ export default function Chat() {
   };
 
   const sendMessage = async () => {
-    if (!text.trim() || !room?._id) return;
+  if (!text.trim() || !room?._id) return;
 
-    const token = await AsyncStorage.getItem('token');
+  const token = await AsyncStorage.getItem('token');
 
-    const res = await fetch(API(`/api/chat/${room._id}/message`), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ text }),
-    });
+  await fetch(API(`/api/chat/${room._id}/message`), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ text }),
+  });
 
-    const savedMsg = await res.json();
-    setMessages((prev) => [...prev, savedMsg]);
-    setText('');
-  };
+  setText('');
+};
 
   return (
     <KeyboardAvoidingView
@@ -154,11 +152,12 @@ export default function Chat() {
       {/* ================= INPUT ================= */}
       <View style={styles.inputBar}>
         <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder="Message"
-          style={styles.input}
-        />
+  value={text}
+  onChangeText={setText}
+  placeholder="Message"
+  placeholderTextColor="#9ca3af"
+  style={styles.input}
+/>
         <TouchableOpacity onPress={sendMessage} style={styles.sendBtn}>
           <Ionicons name="send" size={18} color="#fff" />
         </TouchableOpacity>
@@ -229,13 +228,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f2f5',
   },
   input: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    fontSize: 15,
-  },
+  flex: 1,
+  backgroundColor: '#fff',
+  borderRadius: 20,
+  paddingHorizontal: 14,
+  paddingVertical: 8,
+  fontSize: 15,
+  color: '#111827',   // 👈 MUST FIX
+},
   sendBtn: {
     marginLeft: 8,
     backgroundColor: '#25d366',

@@ -163,11 +163,12 @@ export default function Expenses() {
       </Text>
 
       <TextInput
-        placeholder="Search expense..."
-        value={search}
-        onChangeText={setSearch}
-        style={styles.search}
-      />
+  placeholder="Search expense..."
+  placeholderTextColor="#94a3b8"
+  value={search}
+  onChangeText={setSearch}
+  style={styles.search}
+/>
 
       <FlatList
         data={filtered}
@@ -193,11 +194,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '800', marginBottom: 12 },
 
   search: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
+  backgroundColor: '#fff',
+  padding: 12,
+  borderRadius: 12,
+  marginBottom: 12,
+  color: '#0f172a',   // 👈 MUST FIX
+},
 
   card: {
     backgroundColor: '#fff',

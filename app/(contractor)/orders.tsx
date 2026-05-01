@@ -212,12 +212,13 @@ export default function Orders() {
       {/* SEARCH */}
       <View style={styles.searchBox}>
         <Ionicons name="search-outline" size={18} color="#94a3b8" />
-        <TextInput
-          placeholder="Search material or supplier..."
-          value={search}
-          onChangeText={setSearch}
-          style={styles.searchInput}
-        />
+       <TextInput
+  placeholder="Search material or supplier..."
+  placeholderTextColor="#94a3b8"
+  value={search}
+  onChangeText={setSearch}
+  style={styles.searchInput}
+/>
       </View>
 
       {/* FILTER */}
@@ -284,7 +285,13 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     height: 48,
   },
-  searchInput: { flex: 1, marginLeft: 8, fontSize: 15 },
+  searchInput: { 
+  flex: 1, 
+  marginLeft: 8, 
+  fontSize: 15,
+  color: '#0f172a',   // 👈 MUST FIX
+  paddingVertical: 6,
+},
 
   filterBtn: {
     paddingHorizontal: 16,
