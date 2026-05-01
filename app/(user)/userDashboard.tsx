@@ -101,18 +101,9 @@ export default function UserDashboard() {
   };
 
 
-  const logout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await AsyncStorage.removeItem('token');
-          // Add navigation reset here if using React Navigation
-        },
-      },
-    ]);
+ const handleLogout = async () => {
+    await AsyncStorage.clear();
+    router.replace('/login');
   };
 
   if (loading) {
@@ -156,7 +147,7 @@ export default function UserDashboard() {
             <Text style={styles.userName}>{user?.username || 'User'} 👋</Text>
           </View>
           <TouchableOpacity
-            onPress={logout}
+            onPress={handleLogout}
             style={styles.logoutBtn}
             activeOpacity={0.7}
           >

@@ -65,18 +65,9 @@ export default function ContractorLayout() {
     }
   };
 
-  const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await AsyncStorage.clear();
-          router.replace('/login');
-        },
-      },
-    ]);
+ const handleLogout = async () => {
+    await AsyncStorage.clear();
+    router.replace('/login');
   };
 
   /* ================= UI ================= */

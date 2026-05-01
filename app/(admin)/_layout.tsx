@@ -9,22 +9,9 @@ import { useRouter } from 'expo-router';
 export default function AdminLayout() {
   const router = useRouter();
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await AsyncStorage.clear();
-            router.replace('/login');
-          },
-        },
-      ]
-    );
+ const handleLogout = async () => {
+    await AsyncStorage.clear();
+    router.replace('/login');
   };
 
   // Icon mapping for drawer items
